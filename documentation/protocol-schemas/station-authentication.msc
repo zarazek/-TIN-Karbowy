@@ -1,0 +1,14 @@
+msc {
+    arcgradient=10;
+
+    a [label="Stacja pracownika\nCGUID"], b [label="Stacja szefa\nSGUID"];
+
+    a => b [label="SERVER CHALLENGE xxx"];
+    a <= b [label="SERVER RESPONSE SHA(SGUID+xxx)"];
+    a => b [label="SERVER RESPONSE OK"];
+    a <= b [label="CLIENT CHALLENGE yyy"];
+    a => b [label="CLIENT RESPONSE SHA(SGUID+yyy)"];
+    a <= b [label="CLIENT RESPONSE OK"];
+    a => b [label="CLIENT GUID CGUID"];
+   |||;
+}

@@ -1,0 +1,19 @@
+msc {
+    hscale="1.5", arcgradient=10;
+    
+
+    a [label="Stacja pracownika"], b [label="Stacja szefa"];
+
+    a => b [label="LOG DOWNLOAD FROM 2016-04-14 18:53:13.023"];
+    a <= b [label="2016-04-15 08:31:15.123 wwisniew LOGIN"];
+    a <= b [label="2016-04-15 08:31:19.234 wwisniew TASK 123 START"];
+    a <= b [label="2016-04-15 09:10:11.345 wwisniew TASK 123 PAUSE"];
+    a <= b [label="2016-04-15 09:17:55.543 wwisniew TASK 234 START"];
+    a <= b [label="2016-04-15 10:50:11.542 wwisniew TASK 234 FINISH"];
+    a <= b [label="2016-04-15 10:51:21.111 wwisniew TASK 123 START"];
+    ...;
+    a <= b [label="2016-04-15 16:34:21.091 wwisniew TASK 123 PAUSE"];
+    a <= b [label="2016-04-15 08:31:15.123 wwisniew LOGOUT"];
+    a <= b [label="END LOG"];
+    |||;
+}

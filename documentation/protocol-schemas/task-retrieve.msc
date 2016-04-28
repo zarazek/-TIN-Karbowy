@@ -1,0 +1,14 @@
+msc {
+    arcgradient=10;
+
+    a [label="Stacja pracownika"], b [label="Stacja szefa"];
+
+    a => b [label="RETRIEVE TASKS"];
+    a <= b [label="TASK 1 TITLE \"task1\" SPENT nnn"];
+    a <= b [label="<<Opis zadania task1 zakończony pustą linią>>"];
+    a <= b [label="TASK 2 TITLE \"task2\" SPENT mmm"];
+    a <= b [label="<<Opis zadania task2 zakończony pustą linią>>"];
+    ...;
+    a <= b [label="END TASKS"];
+    |||;
+}

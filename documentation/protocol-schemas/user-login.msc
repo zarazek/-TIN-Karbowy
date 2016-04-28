@@ -1,0 +1,11 @@
+msc {
+    arcgradient=10;
+
+    a [label="Stacja pracownika"], b [label="Stacja szefa"];
+
+    a => b [label="LOGIN userid"];
+    a <= b [label="LOGIN CHALLENGE xxx"];
+    a => b [label="LOGIN RESPONSE SHA(xxx+password)"];
+    a <= b [label="LOGIN RESPONSE OK"];
+   |||;
+}
