@@ -18,6 +18,7 @@ SOURCES += main.cpp\
     checkboxdelegate.cpp
 
 HEADERS  += mainwindow.h \
-    checkboxdelegate.h
+    checkboxdelegate.h \
+    task.h
 
 FORMS    += mainwindow.ui
