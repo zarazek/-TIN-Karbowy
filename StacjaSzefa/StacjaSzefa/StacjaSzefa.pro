@@ -15,10 +15,14 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    checkboxdelegate.cpp
+    checkboxdelegate.cpp \
+    database.cpp
 
 HEADERS  += mainwindow.h \
     checkboxdelegate.h \
-    task.h
+    task.h \
+    employee.h \
+    database.h
+
 
 FORMS    += mainwindow.ui
