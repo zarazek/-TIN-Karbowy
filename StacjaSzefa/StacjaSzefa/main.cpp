@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "database.h"
 #include <QApplication>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -70,6 +71,22 @@ const char *queries[] = {
 int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
 
+    try {
+        Database db("StacjaSzefa.db");
+        for (const char* txt : queries)
+        {
+            SimpleCommand query(db, txt);
+            query.execute();
+        }
+    } catch (std::exception &ex)
+    {
+        QMessageBox::critical(0, "Wyjątek",
+                              QString(ex.what()) + "\n\n" +
+                              "Kliknij OK aby wyjść.",
+                              QMessageBox::Ok);
+        return 1;
+    }
+
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", "KarbowyDb");
     db.setDatabaseName("StacjaSzefa.db");
     if (! db.open()) {
@@ -79,21 +96,19 @@ int main(int argc, char *argv[]) {
                               QMessageBox::Ok);
         return 1;
     }
-    QSqlQuery query(db);
-    for (const char* txt : queries) {
-        if (! query.exec(txt)) {
-            QMessageBox::critical(0, "Błąd inicjacji bazy danych",
-                                  query.lastError().text() + "\n\n" +
-                                  "Kliknij OK aby wyjść.",
-                                  QMessageBox::Ok);
-            return 1;
-        }
-    }
-
+//    QSqlQuery query(db);
+//    for (const char* txt : queries) {
+//        if (! query.exec(txt)) {
+//            QMessageBox::critical(0, "Błąd inicjacji bazy danych",
+//                                  query.lastError().text() + "\n\n" +
+//                                  "Kliknij OK aby wyjść.",
+//                                  QMessageBox::Ok);
+//            return 1;
+//        }
+//    }
     db.close();
 
     MainWindow w;
     w.show();
-
     return a.exec();
 }
