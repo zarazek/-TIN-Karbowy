@@ -24,5 +24,7 @@ HEADERS  += mainwindow.h \
     employee.h \
     database.h
 
-
 FORMS    += mainwindow.ui
+
+unix: CONFIG += link_pkgconfig
+unix: PKGCONFIG += sqlite3
