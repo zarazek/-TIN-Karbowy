@@ -14,7 +14,7 @@ const char* createEmployeesTable =
 "  login     VARCHAR(8) PRIMARY KEY\n,"
 "  password  VARCHAR(15) NOT NULL,\n"
 "  name      VARCHAR(100) NOT NULL,\n"
-"  active    BOOL NOT NULL DEFAULT TRUE)";
+"  active    BOOL NOT NULL DEFAULT 1)";
 
 const char* createTasksTable =
 "CREATE TABLE IF NOT EXISTS Tasks (\n"
@@ -27,8 +27,8 @@ const char* createEmployeesTasksTable =
 "CREATE TABLE IF NOT EXISTS EmployeesTasks (\n"
 "  employee          REFERENCES Employees(login),\n"
 "  task              REFERENCES Tasks(id),\n"
-"  assignment_acitve BOOL NOT NULL DEFAULT TRUE,\n"
-"  finished          BOOL NOT NULL DEFAULT FALSE,\n"
+"  assignment_active BOOL NOT NULL DEFAULT 1,\n"
+"  finished          BOOL NOT NULL DEFAULT 0,\n"
 "  time_spent        INTEGER NOT NULL DEFAULT 0,"
 "  PRIMARY KEY (employee, task))\n";
 
@@ -40,10 +40,10 @@ const char* populateEmployeesTable =
 "  ('wwisniew', 'pass4', 'Wojciech Wiśniewski' )\n";
 
 const char* populateTasksTable =
-"INSERT OR IGNORE INTO Tasks(title, description) VALUES\n"
-"  ('Pompowanie przedniego koła', 'Zadanie polega na napompowaniu przedniego koła roweru.\nSzybciutko!'),\n"
-"  ('Pompowanie tylnego koła', 'Zadanie polega na napompowaniu tylnego koła roweru.\nPrędziutko!'),\n"
-"  ('Smarowanie łańcucha', 'Zadanie polega na nasmarowaniu łańcucha rowerowego.\nMigiem!')";
+"INSERT OR IGNORE INTO Tasks(title, description, status) VALUES\n"
+"  ('Pompowanie przedniego koła', 'Zadanie polega na napompowaniu przedniego koła roweru.\nSzybciutko!', 0),\n"
+"  ('Pompowanie tylnego koła', 'Zadanie polega na napompowaniu tylnego koła roweru.\nPrędziutko!', 1),\n"
+"  ('Smarowanie łańcucha', 'Zadanie polega na nasmarowaniu łańcucha rowerowego.\nMigiem!', 2)";
 
 const char* populateEmployeesTasksTable =
 "INSERT OR IGNORE INTO EmployeesTasks(employee, task)\n"

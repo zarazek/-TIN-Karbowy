@@ -17,14 +17,18 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     database.cpp \
     employeetablemodel.cpp \
-    sortfilteremployeemodel.cpp
+    sortfilteremployeemodel.cpp \
+    taskstablemodel.cpp \
+    commongui.cpp
 
 HEADERS  += mainwindow.h \
     task.h \
     employee.h \
     database.h \
     employeetablemodel.h \
-    sortfilteremployeemodel.h
+    sortfilteremployeemodel.h \
+    taskstablemodel.h \
+    commongui.h
 
 FORMS    += mainwindow.ui
 

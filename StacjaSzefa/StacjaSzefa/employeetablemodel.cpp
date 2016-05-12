@@ -1,9 +1,8 @@
 #include "employeetablemodel.h"
+#include "commongui.h"
 #include <QSqlQuery>
 #include <QSqlRecord>
 #include <QSqlField>
-#include <QSqlError>
-#include <QMessageBox>
 #include <QDebug>
 
 static const char* selectQ = "SELECT login, password, name, active FROM Employees";
@@ -13,41 +12,19 @@ static const char* setNameQ = "UPDATE Employees SET name = ? WHERE login = ?";
 static const char* setActiveQ = "UPDATE Employees SET active = ? WHERE login = ?";
 static const char* addEmployeeQ = "INSERT INTO Employees(login, password, name) VALUES(?, 'hasło', ?)";
 
-static bool execQuery(QSqlQuery& q)
-{
-    if (! q.exec())
-    {
-        QMessageBox::critical(0, "Błąd bazy danych",
-                              q.lastError().text(),
-                              QMessageBox::Ok);
-        return false;
-    }
-    return true;
-}
-
 EmployeeTableModel::EmployeeTableModel(QObject* parent) :
     QSqlQueryModel(parent),
     _editableLogin(-1)
-//    _sortingColumn(LOGIN_COLUMN),
-//    _sortingOrder(Qt::AscendingOrder),
-//    _showActive(true),
-//    _showInactive(true)
 {
-
     refresh();
 }
-
-//int EmployeeTableModel::columnCount(const QModelIndex&) const
-//{
-//    return 3;
-//}
 
 QVariant EmployeeTableModel::data(const QModelIndex& item, int role) const
 {
     QVariant v = QSqlQueryModel::data(item, role);
-    if (item.column() == LOGIN_COLUMN && role == Qt::CheckStateRole)
+    if (item.column() == EMPLOYEE_COLUMN_LOGIN && role == Qt::CheckStateRole)
     {
-        bool value = record(item.row()).field(ENABLED_COLUMN).value().toBool();
+        bool value = record(item.row()).field(EMPLOYEE_COLUMN_ACTIVE).value().toBool();
         v = value ? Qt::Checked : Qt::Unchecked;
     }
     return v;
@@ -63,17 +40,17 @@ Qt::ItemFlags EmployeeTableModel::flags(const QModelIndex& index) const
     Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
     switch (index.column())
     {
-    case LOGIN_COLUMN:
+    case EMPLOYEE_COLUMN_LOGIN:
         flags |= Qt::ItemIsUserCheckable;
         if (_editableLogin == index.row())
         {
             flags |= Qt::ItemIsEditable;
         }
         break;
-    case PASSWORD_COLUMN:
+    case EMPLOYEE_COLUMN_PASSWORD:
         flags |= Qt::ItemIsEditable;
         break;
-    case NAME_COLUMN:
+    case EMPLOYEE_COLUMN_NAME:
         flags |=  Qt::ItemIsEditable;
         break;
     }
@@ -90,7 +67,7 @@ static void logInvalidEdit(int role, const QModelIndex& index, const QVariant da
 
 bool EmployeeTableModel::setData(const QModelIndex& index, const QVariant& data, int role)
 {
-    QString key = record(index.row()).field(LOGIN_COLUMN).value().toString();
+    QString key = record(index.row()).field(EMPLOYEE_COLUMN_LOGIN).value().toString();
 
     bool ok = false;
     switch (role)
@@ -98,7 +75,7 @@ bool EmployeeTableModel::setData(const QModelIndex& index, const QVariant& data,
     case Qt::CheckStateRole:
         switch (index.column())
         {
-        case LOGIN_COLUMN:
+        case EMPLOYEE_COLUMN_LOGIN:
             ok = setActive(key, data.toBool());
             break;
         default:
@@ -108,17 +85,17 @@ bool EmployeeTableModel::setData(const QModelIndex& index, const QVariant& data,
     case Qt::EditRole:
         switch (index.column())
         {
-        case LOGIN_COLUMN:
+        case EMPLOYEE_COLUMN_LOGIN:
             ok = setLogin(key, data.toString());
             if (ok)
             {
                 _editableLogin = -1;
             }
             break;
-        case PASSWORD_COLUMN:
+        case EMPLOYEE_COLUMN_PASSWORD:
             ok = setPassword(key, data.toString());
             break;
-        case NAME_COLUMN:
+        case EMPLOYEE_COLUMN_NAME:
             ok = setName(key, data.toString());
             break;
         default:
@@ -135,13 +112,6 @@ bool EmployeeTableModel::setData(const QModelIndex& index, const QVariant& data,
     return ok;
 }
 
-//void EmployeeTableModel::sort(int column, Qt::SortOrder order)
-//{
-//    _sortingColumn = column;
-//    _sortingOrder = order;
-//    refresh();
-//}
-
 void EmployeeTableModel::addRow()
 {
     QSqlQuery q(QSqlDatabase::database("KarbowyDb"));
@@ -155,24 +125,6 @@ void EmployeeTableModel::addRow()
         refresh();
     }
 }
-
-//void EmployeeTableModel::showActive(bool v)
-//{
-//    if (v != _showActive)
-//    {
-//        _showActive = v;
-//        refresh();
-//    }
-//}
-
-//void EmployeeTableModel::showInactive(bool v)
-//{
-//    if (v != _showInactive)
-//    {
-//        _showInactive = v;
-//        refresh();
-//    }
-//}
 
 bool EmployeeTableModel::setLogin(const QString& oldLogin, const QString& newLogin)
 {
@@ -213,43 +165,8 @@ bool EmployeeTableModel::setActive(const QString& login, bool active)
 void EmployeeTableModel::refresh()
 {
     clear();
-    QString txt(selectQ);
-//    if (_showActive && ! _showInactive)
-//    {
-//        txt += " WHERE active IS TRUE";
-//    }
-//    else if (! _showActive && _showInactive)
-//    {
-//        txt += " WHERE active IS FALSE";
-//    }
-//    else if (! _showActive && !_showInactive)
-//    {
-//        txt += " WHERE 1 = 0";
-//    }
-
-//    switch (_sortingColumn)
-//    {
-//    case LOGIN_COLUMN:
-//        txt += " ORDER BY login";
-//        break;
-//    case PASSWORD_COLUMN:
-//        txt += " ORDER BY password";
-//        break;
-//    case NAME_COLUMN:
-//        txt += " ORDER BY name";
-//        break;
-//    }
-//    switch (_sortingOrder)
-//    {
-//    case Qt::AscendingOrder:
-//        txt += " ASC";
-//        break;
-//    case Qt::DescendingOrder:
-//        txt += " DESC";
-//    }
-
-    setQuery(txt, QSqlDatabase::database("KarbowyDb"));
-    setHeaderData(LOGIN_COLUMN, Qt::Horizontal, "Login");
-    setHeaderData(PASSWORD_COLUMN, Qt::Horizontal, "Hasło");
-    setHeaderData(NAME_COLUMN, Qt::Horizontal, "Imię i nazwisko");
+    setQuery(selectQ, QSqlDatabase::database("KarbowyDb"));
+    setHeaderData(EMPLOYEE_COLUMN_LOGIN, Qt::Horizontal, "Login");
+    setHeaderData(EMPLOYEE_COLUMN_PASSWORD, Qt::Horizontal, "Hasło");
+    setHeaderData(EMPLOYEE_COLUMN_NAME, Qt::Horizontal, "Imię i nazwisko");
 }

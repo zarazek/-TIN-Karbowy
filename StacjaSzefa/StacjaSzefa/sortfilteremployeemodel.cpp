@@ -1,4 +1,5 @@
 #include "sortfilteremployeemodel.h"
+#include "commongui.h"
 
 SortFilterEmployeeModel::SortFilterEmployeeModel(QObject* parent) :
     QSortFilterProxyModel(parent),
@@ -25,7 +26,7 @@ void SortFilterEmployeeModel::showInactive(bool v)
 
 bool SortFilterEmployeeModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
 {
-    QModelIndex index = sourceModel()->index(sourceRow, 3, sourceParent);
+    QModelIndex index = sourceModel()->index(sourceRow, EMPLOYEE_COLUMN_ACTIVE, sourceParent);
     bool value = sourceModel()->data(index).toBool();
     return value ? _showActive : _showInactive;
 }

@@ -1,7 +1,9 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "commongui.h"
 #include "sortfilteremployeemodel.h"
 #include "employeetablemodel.h"
+#include "taskstablemodel.h"
 #include <QContextMenuEvent>
 #include <QMenu>
 
@@ -14,16 +16,30 @@ MainWindow::MainWindow(QWidget *parent) :
     EmployeeTableModel *employeesModel = new EmployeeTableModel(filteredEmployeesModel);
     filteredEmployeesModel->setSourceModel(employeesModel);
     ui->employeesView->setModel(filteredEmployeesModel);
-    ui->employeesView->hideColumn(3);
-    ui->employeesView->resizeColumnsToContents();
-    connect(filteredEmployeesModel, SIGNAL(modelReset()),
-            ui->employeesView, SLOT(resizeColumnsToContents()));
-    connect(ui->addEmployeeButton, &QPushButton::clicked, employeesModel, &EmployeeTableModel::addRow);
+    ui->employeesView->hideColumn(EMPLOYEE_COLUMN_ACTIVE);
+//    ui->employeesView->resizeColumnsToContents();
+//    connect(filteredEmployeesModel, &SortFilterEmployeeModel::modelReset,
+//            ui->employeesView, &QTableView::resizeColumnsToContents);
+    connect(ui->addEmployeeButton, &QPushButton::clicked,
+            employeesModel, &EmployeeTableModel::addRow);
     QHeaderView *header = ui->employeesView->horizontalHeader();
+    header->setSectionResizeMode(QHeaderView::ResizeToContents);
     header->setSortIndicatorShown(true);
-    connect(header, &QHeaderView::sortIndicatorChanged, filteredEmployeesModel, &SortFilterEmployeeModel::sort);
+    connect(header, &QHeaderView::sortIndicatorChanged,
+            filteredEmployeesModel, &SortFilterEmployeeModel::sort);
     _employeesContextMenu = createEmployeesContextMenu(filteredEmployeesModel);
     ui->employeesView->installEventFilter(this);
+    TasksTableModel *tasksModel = new TasksTableModel(this);
+    ui->tasksView->setModel(tasksModel);
+    ui->tasksView->hideColumn(TASK_COLUMN_ID);
+    ui->tasksView->hideColumn(TASK_COLUMN_ALL_FINISHED);
+    ui->tasksView->hideColumn(TASK_COLUMN_SOME_FINISHED);
+//    ui->tasksView->resizeColumnsToContents();
+//    connect(tasksModel, &TasksTableModel::modelReset, ui->tasksView,
+//            &QTableView::resizeColumnsToContents);
+    header = ui->tasksView->horizontalHeader();
+    header->setSectionResizeMode(QHeaderView::ResizeToContents);
+    header->setSortIndicatorShown(true);
 }
 
 QMenu* MainWindow::createEmployeesContextMenu(SortFilterEmployeeModel *model)
