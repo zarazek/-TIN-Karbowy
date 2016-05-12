@@ -116,15 +116,15 @@ protected:
     QueryBase(Database &db, const string& queryStr);
 
     template <typename... Args>
-    static void bindParams(sqlite3_stmt *stmt, Args&&... args)
+    void bindParams(Args&&... args)
     {
-        bind(0, std::forward<Args>(args)...);
+        bind(1, std::forward<Args>(args)...);
     }
 
     bool executeStep();
 
 private:
-    static void bind(int paramIdx)
+    static void bind(int)
     {
         // TODO
     }
@@ -195,18 +195,12 @@ private:
     }
 };
 
-class SimpleCommand : QueryBase
-{
-public:
-    SimpleCommand(Database& db, const string& querStr);
-    void execute();
-};
-
 template <typename... Args>
-class ParametrizedCommand : QueryBase
+class Command : QueryBase
 {
 public:
-    ParametrizedCommand(Database& db, const string& queryStr);
+    Command(Database& db, const string& queryStr) :
+        QueryBase(db, queryStr) { }
 
     void execute(Args&&... args)
     {
@@ -214,6 +208,160 @@ public:
         bool res = executeStep();
         assert(! res);
     }
+};
+
+template <typename Result>
+class RowRetrieverBase
+{
+public:
+    virtual ~RowRetrieverBase() { }
+    virtual Result retrieveRow(sqlite3_stmt* stmt) = 0;
+};
+
+template <typename Functor, typename Bound>
+struct bound_first
+{
+    Functor _functor;
+    Bound _bound;
+
+    template <typename... RestOfArgs>
+    typename std::result_of<Functor&(Bound, RestOfArgs...)>::type operator()(RestOfArgs&&... args)
+    {
+        return _functor(std::move(_bound), std::forward<RestOfArgs>(args)...);
+    }
+};
+
+template <typename Functor, typename Bound>
+bound_first<typename std::decay<Functor>::type, typename std::decay<Bound>::type>
+bind_first(Functor&& functor, Bound&& bound)
+{
+    return  { std::forward<Functor>(functor), std::forward<Bound>(bound) };
+}
+
+template <typename Result, typename... Args>
+class RowRetriever : public RowRetrieverBase<Result>
+{
+public:
+    RowRetriever(std::function<Result(Args...)> fn) :
+        _fn(fn) { }
+
+    Result retrieveRow(sqlite3_stmt* stmt) override
+    {
+        _stmt = stmt;
+        return callFunction(0, _fn);
+    }
+
+private:
+    std::function<Result(Args...)> _fn;
+    sqlite3_stmt* _stmt;
+
+    Result callFunction(int, const std::function<Result()>& fn)
+    {
+        return fn();
+    }
+
+    template <typename... RestOfArgs>
+    Result callFunction(int columnIdx, const std::function<Result(bool, RestOfArgs...)>& fn)
+    {
+        bool value = retrieveBoolColumn(columnIdx);
+        return callFunction(columnIdx + 1,
+                            std::function<Result(RestOfArgs...)>(bind_first(fn, value)));
+    }
+
+    template <typename... RestOfArgs>
+    Result callFuncton(int columnIdx, const std::function<Result(boost::optional<bool>, RestOfArgs...)>& fn)
+    {
+        boost::optional<bool> value;
+        int type = sqlite3_column_type(_stmt, columnIdx);
+        switch (type)
+        {
+        case SQLITE_NULL:
+            value = boost::none;
+            break;
+        case SQLITE_TEXT:
+            *value = retrieveBoolColumn(columnIdx);
+             break;
+        default:
+            //TODO: throw proper exception
+            throw std::runtime_error("not bool nor null");
+            break;
+        }
+        return callFunction(columnIdx + 1,
+                            std::function<Result(RestOfArgs...)>(bind_first(fn, value)));
+    }
+
+    bool retrieveBoolColumn(int columnIdx)
+    {
+        int type = sqlite3_column_type(_stmt, columnIdx);
+        switch (type)
+        {
+        case SQLITE_TEXT:
+            return textToBool(reinterpret_cast<const char*>(sqlite3_column_text(_stmt, columnIdx)));
+        case SQLITE_INTEGER:
+            return sqlite3_column_int(_stmt, columnIdx);
+        default:
+            //TODO: throw proper exception
+            throw std::runtime_error("not bool");
+        }
+    }
+
+    static bool textToBool(const char* strValue)
+    {
+        if (strcmp(strValue, "TRUE") == 0)
+        {
+            return true;
+        }
+        else if (strcmp(strValue, "FALSE") == 0)
+        {
+            return false;
+        }
+        else
+        {
+            //TODO: throw proper exception
+            throw std::runtime_error(strValue);
+        }
+    }
+
+    template <typename... RestOfArgs>
+    Result callFunction(int columnIdx, const std::function<Result(string, RestOfArgs...)>& fn)
+    {
+       if (sqlite3_column_type(_stmt, columnIdx) != SQLITE_TEXT)
+       {
+           // TODO: throw exception
+       }
+       string value(reinterpret_cast<const char*>(sqlite3_column_text(_stmt, columnIdx)));
+       return callFunction(columnIdx + 1,
+                           std::function<Result(RestOfArgs...)>(bind_first(fn, value)));
+    }
+};
+
+template <typename Result, typename... Args>
+class Query : QueryBase
+{
+public:
+    Query(Database& db, const string& queryStr, RowRetrieverBase<Result>& retriever) :
+        QueryBase(db, queryStr),
+        _retriever(retriever) { }
+
+    void execute(Args&&... args)
+    {
+        bindParams(std::forward<Args>(args)...);
+    }
+
+    bool next(Result& result)
+    {
+        if (executeStep())
+        {
+            result = _retriever.retrieveRow(_stmt);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+private:
+    RowRetrieverBase<Result>& _retriever;
 };
 
 

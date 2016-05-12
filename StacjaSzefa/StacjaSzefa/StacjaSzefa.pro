@@ -15,16 +15,21 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    checkboxdelegate.cpp \
-    database.cpp
+    database.cpp \
+    employeetablemodel.cpp \
+    sortfilteremployeemodel.cpp
 
 HEADERS  += mainwindow.h \
-    checkboxdelegate.h \
     task.h \
     employee.h \
-    database.h
+    database.h \
+    employeetablemodel.h \
+    sortfilteremployeemodel.h
 
 FORMS    += mainwindow.ui
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3
+
+INCLUDEPATH += $$PWD/../../../boost/boost_1_60_0
+DEPENDPATH += $$PWD/../../../boost/boost_1_60_0

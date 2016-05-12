@@ -7,6 +7,9 @@ namespace Ui {
 class MainWindow;
 }
 
+class QMenu;
+class SortFilterEmployeeModel;
+
 class MainWindow : public QDialog
 {
     Q_OBJECT
@@ -14,9 +17,13 @@ class MainWindow : public QDialog
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
+    bool eventFilter(QObject* obj, QEvent* e) override;
 
 private:
     Ui::MainWindow *ui;
+    QMenu* _employeesContextMenu;
+
+    QMenu *createEmployeesContextMenu(SortFilterEmployeeModel* model);
 };
 
 #endif // MAINWINDOW_H

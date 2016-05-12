@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "database.h"
+#include "employee.h"
 #include <QApplication>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -68,6 +69,26 @@ const char *queries[] = {
     populateEmployeesTasksTable
 };
 
+const char *retrieveAllEmployeesQ =
+"SELECT login, password, name, active\n"
+"FROM Employees\n";
+
+const char *retrieveEmployeesByLoginQ =
+"SELECT login, password, name, active\n"
+"FROM Employees\n"
+"WHERE login = ?\n";
+
+RowRetriever<std::shared_ptr<Employee>,
+             string, string, string, bool>
+employeeRetriever(std::make_shared<Employee, const string&, const string&, const string&, bool>);
+
+static void printEmpl(const Employee& empl)
+{
+    qDebug() << "login = " << empl._login.c_str() << " password = " << empl._password.c_str()
+             << " name = " << empl._name.c_str() << " active = " << empl._active;
+}
+
+
 int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
 
@@ -75,8 +96,24 @@ int main(int argc, char *argv[]) {
         Database db("StacjaSzefa.db");
         for (const char* txt : queries)
         {
-            SimpleCommand query(db, txt);
+            Command<> query(db, txt);
             query.execute();
+        }
+
+        Query<std::shared_ptr<Employee> > retrieveAllEmployees(
+          db, retrieveAllEmployeesQ, employeeRetriever);
+        retrieveAllEmployees.execute();
+        std::shared_ptr<Employee> empl;
+        while (retrieveAllEmployees.next(empl))
+        {
+            printEmpl(*empl);
+        }
+        Query<std::shared_ptr<Employee>, string> retrieveSpecificEmployees(
+            db, retrieveEmployeesByLoginQ, employeeRetriever);
+        retrieveSpecificEmployees.execute("wwisniew");
+        while (retrieveSpecificEmployees.next(empl))
+        {
+            printEmpl(*empl);
         }
     } catch (std::exception &ex)
     {

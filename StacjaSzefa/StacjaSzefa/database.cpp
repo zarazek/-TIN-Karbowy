@@ -11,7 +11,7 @@ const char* DatabaseError::what() const noexcept
     {
         std::stringstream stream;
         formatWhatMsg(stream);
-        _whatBuffer = std::make_unique<string>(stream.str());
+        _whatBuffer = unique_ptr<string>(new string(stream.str()));
     }
     return _whatBuffer->c_str();
 }
@@ -74,7 +74,7 @@ public:
                 _stream << c;
             }
         }
-        _stream << value << '\'';
+        _stream << '\'';
     }
 
     template <class T>
@@ -96,10 +96,10 @@ private:
 
 void BindError::formatWhatMsg(std::ostream &stream) const
 {
-    stream << "Error while binding parameter " << (_paramIdx + 1) << " to value ";
+    stream << "Error while binding parameter " << _paramIdx << " to value ";
     boost::apply_visitor(PrintVisitor(stream), _paramValue);
-    stream << "in query:\n" << _queryStr << '\n'
-           << _errorMsg << " (error code" << _errorCode << ')';
+    stream << " in query:\n" << _queryStr << '\n'
+           << _errorMsg << " (error code " << _errorCode << ')';
 
 }
 
@@ -142,7 +142,6 @@ const char* Database::getErrorMsg(sqlite3* db, int errorCode)
 {
     return db ? sqlite3_errmsg(db) : sqlite3_errstr(errorCode);
 }
-
 
 sqlite3_stmt* Database::prepareQuery(const string &queryStr)
 {
@@ -189,13 +188,4 @@ bool QueryBase::executeStep()
             throw err;
         }
     }
-}
-
-SimpleCommand::SimpleCommand(Database &db, const string &queryStr) :
-    QueryBase(db, queryStr) { }
-
-void SimpleCommand::execute()
-{
-    bool res = executeStep();
-    assert(! res);
 }
