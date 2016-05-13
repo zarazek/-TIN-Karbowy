@@ -1,15 +1,21 @@
 #include "taskstablemodel.h"
 #include "commongui.h"
+#include <QSqlQuery>
 #include <QSqlRecord>
 #include <QSqlField>
 #include <QSqlError>
+#include <QDebug>
 #include <assert.h>
 
 static const char* selectQ =
 "SELECT t.id, t.title, t.description, t.status, MIN(et.finished), MAX(et.finished), SUM(et.time_spent)\n"
-"FROM Tasks AS t JOIN EmployeesTasks AS et ON t.id = et.task\n"
-"WHERE et.assignment_active = 1\n"
+"FROM Tasks AS t LEFT JOIN EmployeesTasks AS et ON t.id = et.task\n"
+"WHERE et.assignment_active = 1 OR et.assignment_active IS NULL\n"
 "GROUP BY t.id\n";
+static const char* addTaskQ = "INSERT INTO Tasks(title, description) VALUES(?, 'Opis zadania')";
+static const char* setTitleQ = "UPDATE Tasks SET title = ? WHERE id = ?";
+static const char* setDescriptionQ = "UPDATE Tasks SET description = ? WHERE id = ?";
+static const char* setStatusQ = "UPDATE Tasks SET status = ? WHERE id = ?";
 
 TasksTableModel::TasksTableModel(QObject* parent) :
     QSqlQueryModel(parent)
@@ -98,8 +104,102 @@ QVariant TasksTableModel::data(const QModelIndex& item, int role) const
             assert(false);
         }
     }
+    else if (item.column() == TASK_COLUMN_TOTAL_TIME && role == Qt::DisplayRole)
+    {
+        if (v.isNull())
+        {
+            v = 0;
+        }
+    }
 
     return v;
+}
+
+static void logInvalidEdit(int role, const QModelIndex& index, const QVariant data)
+{
+    qDebug() << "invalid set data: role = " << role
+             << " row = "<< index.row()
+             << " column = " << index.column()
+             << " data = " << data;
+}
+
+bool TasksTableModel::setData(const QModelIndex& index, const QVariant& data, int role)
+{
+    int key = record(index.row()).field(TASK_COLUMN_ID).value().toInt();
+
+    bool ok = false;
+    switch (role)
+    {
+    case Qt::CheckStateRole:
+        switch (index.column())
+        {
+        case TASK_COLUMN_TITLE:
+            ok = setActive(key, data.toBool());
+            break;
+        default:
+            logInvalidEdit(role, index, data);
+        }
+        break;
+    case Qt::EditRole:
+        switch (index.column())
+        {
+        case TASK_COLUMN_TITLE:
+            ok = setTitle(key, data.toString());
+            break;
+        case TASK_COLUMN_DESC:
+            ok = setDescription(key, data.toString());
+            break;
+        default:
+            logInvalidEdit(role, index, data);
+        }
+        break;
+    }
+
+    if (ok)
+    {
+        refresh();
+    }
+
+    return ok;
+}
+
+void TasksTableModel::addRow()
+{
+    QSqlQuery q(QSqlDatabase::database("KarbowyDb"));
+    int cnt = rowCount();
+    q.prepare(addTaskQ);
+    q.addBindValue("Zadanie nr " + QString::number(cnt));
+    if (execQuery(q))
+    {
+        refresh();
+    }
+}
+
+bool TasksTableModel::setActive(int key, bool active)
+{
+    QSqlQuery q(QSqlDatabase::database("KarbowyDb"));
+    q.prepare(setStatusQ);
+    q.addBindValue(active ? TASK_STATE_ACTIVE : TASK_STATE_CANCELED);
+    q.addBindValue(key);
+    return execQuery(q);
+}
+
+bool TasksTableModel::setTitle(int key, const QString& title)
+{
+    QSqlQuery q(QSqlDatabase::database("KarbowyDb"));
+    q.prepare(setTitleQ);
+    q.addBindValue(title);
+    q.addBindValue(key);
+    return execQuery(q);
+}
+
+bool TasksTableModel::setDescription(int key, const QString& desc)
+{
+    QSqlQuery q(QSqlDatabase::database("KarbowyDb"));
+    q.prepare(setDescriptionQ);
+    q.addBindValue(desc);
+    q.addBindValue(key);
+    return execQuery(q);
 }
 
 void TasksTableModel::refresh()

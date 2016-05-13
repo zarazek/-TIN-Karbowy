@@ -17,9 +17,6 @@ MainWindow::MainWindow(QWidget *parent) :
     filteredEmployeesModel->setSourceModel(employeesModel);
     ui->employeesView->setModel(filteredEmployeesModel);
     ui->employeesView->hideColumn(EMPLOYEE_COLUMN_ACTIVE);
-//    ui->employeesView->resizeColumnsToContents();
-//    connect(filteredEmployeesModel, &SortFilterEmployeeModel::modelReset,
-//            ui->employeesView, &QTableView::resizeColumnsToContents);
     connect(ui->addEmployeeButton, &QPushButton::clicked,
             employeesModel, &EmployeeTableModel::addRow);
     QHeaderView *header = ui->employeesView->horizontalHeader();
@@ -34,9 +31,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->tasksView->hideColumn(TASK_COLUMN_ID);
     ui->tasksView->hideColumn(TASK_COLUMN_ALL_FINISHED);
     ui->tasksView->hideColumn(TASK_COLUMN_SOME_FINISHED);
-//    ui->tasksView->resizeColumnsToContents();
-//    connect(tasksModel, &TasksTableModel::modelReset, ui->tasksView,
-//            &QTableView::resizeColumnsToContents);
+    connect(ui->newTaskButton, &QPushButton::clicked,
+            tasksModel, &TasksTableModel::addRow);
     header = ui->tasksView->horizontalHeader();
     header->setSectionResizeMode(QHeaderView::ResizeToContents);
     header->setSortIndicatorShown(true);
