@@ -15,29 +15,25 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    database.cpp \
     employeetablemodel.cpp \
     sortfilteremployeemodel.cpp \
     taskstablemodel.cpp \
-    commongui.cpp \
-    sockets.cpp \
-    linebuffer.cpp
+    commongui.cpp
 
 HEADERS  += mainwindow.h \
     task.h \
     employee.h \
-    database.h \
     employeetablemodel.h \
     sortfilteremployeemodel.h \
     taskstablemodel.h \
-    commongui.h \
-    sockets.h \
-    linebuffer.h
+    commongui.h
 
 FORMS    += mainwindow.ui
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3
 
-INCLUDEPATH += $$PWD/../../../boost/boost_1_60_0
-DEPENDPATH += $$PWD/../../../boost/boost_1_60_0
+LIBS += -L$$OUT_PWD/../KarbowyLib/ -lKarbowyLib
+
+INCLUDEPATH += $$PWD/../KarbowyLib
+DEPENDPATH += $$PWD/../KarbowyLib

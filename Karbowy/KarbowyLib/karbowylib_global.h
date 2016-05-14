@@ -1,0 +1,12 @@
+#ifndef KARBOWYLIB_GLOBAL_H
+#define KARBOWYLIB_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(KARBOWYLIB_LIBRARY)
+#  define KARBOWYLIBSHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define KARBOWYLIBSHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // KARBOWYLIB_GLOBAL_H

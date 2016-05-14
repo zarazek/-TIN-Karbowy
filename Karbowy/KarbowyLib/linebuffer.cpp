@@ -11,7 +11,7 @@ LineBuffer::LineBuffer() :
 bool LineBuffer::hasFullLine() const
 {
     size_t size = _lines.size();
-    return size > 1 || size > 0 && _lastLineComplete || _eofReceived;
+    return size > 1 || size > 0 && _lastLineComplete;
 }
 
 bool LineBuffer::isEof() const
@@ -21,17 +21,10 @@ bool LineBuffer::isEof() const
 
 std::string LineBuffer::getFirstLine()
 {
-    if (isEof())
-    {
-        throw std::runtime_error("eof");
-    }
-    else
-    {
-        assert(hasFullLine());
-        std::string line = _lines.front();
-        _lines.pop_front();
-        return line;
-    }
+    assert(hasFullLine());
+    std::string line = _lines.front();
+    _lines.pop_front();
+    return line;
 }
 
 void LineBuffer::addData(const char* data, size_t size)
