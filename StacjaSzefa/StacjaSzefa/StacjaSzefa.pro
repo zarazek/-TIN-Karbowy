@@ -19,7 +19,9 @@ SOURCES += main.cpp\
     employeetablemodel.cpp \
     sortfilteremployeemodel.cpp \
     taskstablemodel.cpp \
-    commongui.cpp
+    commongui.cpp \
+    sockets.cpp \
+    linebuffer.cpp
 
 HEADERS  += mainwindow.h \
     task.h \
@@ -28,7 +30,9 @@ HEADERS  += mainwindow.h \
     employeetablemodel.h \
     sortfilteremployeemodel.h \
     taskstablemodel.h \
-    commongui.h
+    commongui.h \
+    sockets.h \
+    linebuffer.h
 
 FORMS    += mainwindow.ui
 
