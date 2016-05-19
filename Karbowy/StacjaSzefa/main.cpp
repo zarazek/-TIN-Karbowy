@@ -1,11 +1,13 @@
 #include "mainwindow.h"
 #include "database.h"
 #include "employee.h"
+#include "sockets.h"
 #include <QApplication>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QMessageBox>
+#include <thread>
 
 #include <QDebug>
 
@@ -88,7 +90,6 @@ static void printEmpl(const Employee& empl)
              << " name = " << empl._name.c_str() << " active = " << empl._active;
 }
 
-
 int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
 
@@ -144,6 +145,9 @@ int main(int argc, char *argv[]) {
 //        }
 //    }
     db.close();
+
+    //TODO
+    //wątki, nasłuchujące IPv4 oraz IPv6
 
     MainWindow w;
     w.show();

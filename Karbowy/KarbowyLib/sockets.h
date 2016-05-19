@@ -10,6 +10,7 @@ class Ipv4Address
 {
 public:
     static Ipv4Address resolve(const std::string& name, uint16_t port);
+    static Ipv4Address any(uint16_t port);
 
     const sockaddr* address() const
     {
@@ -31,6 +32,7 @@ class Ipv6Address
 {
 public:
     static Ipv6Address resolve(const std::string& name, uint16_t port);
+    static Ipv6Address any(uint16_t port);
 
     const sockaddr* address() const
     {
@@ -72,6 +74,8 @@ private:
 
     TcpStream(int fd) :
         _fd(fd) { }
+    friend class Ipv4Listener;
+    friend class Ipv6Listener;
 };
 
 class Ipv4Listener
@@ -80,19 +84,20 @@ public:
     Ipv4Listener(uint16_t port);
     ~Ipv4Listener();
 
-    TcpStream* awaitConnection();
+    TcpStream awaitConnection();
 private:
-    int _description;
+    int _fd;
 };
 
 class Ipv6Listener
 {
 public:
     Ipv6Listener(uint16_t port);
+    ~Ipv6Listener();
 
-    TcpStream* awaitConnection();
+    TcpStream awaitConnection();
 private:
-    int _description;
+    int _fd;
 };
 
 #endif
