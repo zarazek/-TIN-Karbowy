@@ -5,7 +5,8 @@ CONFIG -= qt
 
 SOURCES += \
     linebuffer.cpp \
-    gtest_main.cc
+    gtest_main.cc \
+    sockets.cpp
 
 LIBS += -L$$OUT_PWD/../KarbowyLib/ -lKarbowyLib
 

@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <assert.h>
 
-static void resolve(sa_family_t srcFamily, const std::string& name, sa_family_t* dstFamily, void* address)
+static void resolve(sa_family_t srcFamily, const std::string& name, void* address, size_t addressLength)
 {
     hostent hostentBuffer;
     char stringBuffer[512];
@@ -24,10 +24,11 @@ static void resolve(sa_family_t srcFamily, const std::string& name, sa_family_t*
         throw std::runtime_error("resolve error");
     }
     assert(result);
-    assert(result->h_length > 0);
+    assert(result->h_addrtype == srcFamily);
+    assert(result->h_length == addressLength);
+    assert(result->h_addr_list);
     assert(result->h_addr_list[0]);
 
-    *dstFamily = result->h_addrtype;
     memcpy(address, result->h_addr_list[0], result->h_length);
 }
 
@@ -35,7 +36,8 @@ Ipv4Address Ipv4Address::resolve(const std::string& name, uint16_t port)
 {
     Ipv4Address address;
     memset(&address._address, 0, sizeof(address._address));
-    ::resolve(AF_INET, name, &address._address.sin_family, &address._address.sin_addr);
+    address._address.sin_family = AF_INET;
+    ::resolve(AF_INET, name, &address._address.sin_addr, sizeof(address._address.sin_addr));
     address._address.sin_port = htons(port);
     return address;
 }
@@ -44,7 +46,8 @@ Ipv6Address Ipv6Address::resolve(const std::string& name, uint16_t port)
 {
     Ipv6Address address;
     memset(&address._address, 0, sizeof(address._address));
-    ::resolve(AF_INET6, name, &address._address.sin6_family, &address._address.sin6_addr);
+    address._address.sin6_family = AF_INET6;
+    ::resolve(AF_INET6, name, &address._address.sin6_addr, sizeof(address._address.sin6_addr));
     address._address.sin6_port = htons(port);
     return address;
 }
@@ -84,7 +87,6 @@ TcpStream::~TcpStream()
         close(_fd);
     }
 }
-
 
 
 std::string TcpStream::readLine()
