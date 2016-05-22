@@ -148,11 +148,11 @@ private:
     }
 
     template <typename... RestOfArgs>
-    void bind(int paramIdx, int param, RestOfArgs&&... restOfArgs)
+    void bind(int paramIdx, int param, RestOfArgs... restOfArgs)
     {
         int errorCode = sqlite3_bind_int(_stmt, paramIdx, param);
         checkBindError(errorCode, paramIdx, param);
-        bind(paramIdx + 1, std::forward<RestOfArgs>(restOfArgs)...);
+        bind(paramIdx + 1, restOfArgs...);
     }
 
     template <typename... RestOfArgs>
