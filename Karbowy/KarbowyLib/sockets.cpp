@@ -132,10 +132,23 @@ std::string TcpStream::readLine()
     return _buffer.getFirstLine();
 }
 
-void TcpStream::writeLine(std::string)
+void TcpStream::writeLine(const std::string line)
 {
-    //TO DO
-
+    ssize_t writeBytes = 0;
+    unsigned length = line.length();
+    const char* charLine = line.c_str();
+    while (writeBytes != line.length())
+    {
+        ssize_t written = write(_fd, charLine + writeBytes, length - writeBytes);
+        if (written < 0)
+        {
+            throw std::runtime_error("write error");
+        }
+        else
+        {
+            writeBytes += written;
+        }
+    }
 }
 
 Ipv4Listener::Ipv4Listener(uint16_t port)

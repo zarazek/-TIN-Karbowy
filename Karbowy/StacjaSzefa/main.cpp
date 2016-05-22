@@ -17,6 +17,8 @@
 #include <QDebug>
 #include <sstream>
 
+enum command {SC, SR, CR, CG};
+
 const char* createEmployeesTable =
 "CREATE TABLE IF NOT EXISTS Employees (\n"
 "  login     VARCHAR(8) PRIMARY KEY\n,"
@@ -117,11 +119,11 @@ static void printEmpl(const Employee& empl)
              << " name = " << empl._name.c_str() << " active = " << empl._active;
 }
 
-static std::string parse(std::string command, std::string line)
+static std::string parse(command cmd, std::string line)
 {
-    switch(command)
+    switch(cmd)
     {
-    case "sc":
+    case SC:
         if(line.substr(0,17) != "SERWER CHALLENGE ")
         {
             throw std::runtime_error("SERVER CHALLENGE error");
@@ -130,6 +132,37 @@ static std::string parse(std::string command, std::string line)
         {
             return line.substr(18,line.length()-17);
         }
+        break;
+    case SR:
+        if (line != "SERWER RESPONSE OK")
+        {
+            throw std::runtime_error("SERVER RESPONSE error");
+        }
+        else
+        {
+            return line;
+        }
+        break;
+    case CR:
+        if (line.substr(0,16) != "CLIENT RESPONSE ")
+        {
+            throw std::runtime_error("CLIENT RESPONSE error");
+        }
+        else
+        {
+            return line.substr(17,line.length()-16);
+        }
+        break;
+    case CG:
+        if (line.substr(0,12) != "CLIENT GUID")
+        {
+            throw std::runtime_error("CLIENT GUID error");
+        }
+        else
+        {
+            return line.substr(13,line.length()-12);
+        }
+        break;
     }
 
 }
@@ -144,9 +177,11 @@ static std::string SHA(std::string message)
 
 static void handleConnection(TcpStream connection, std::string strUuid)
 {
-    std::string salt = parse("sc", connection.readLine());
+    std::string salt = parse(SC, connection.readLine());
     std::string response = SHA(strUuid + salt);
     connection.writeLine("SERVER RESPONSE " + response);
+    parse(SR, connection.readLine());
+
 
 }
 

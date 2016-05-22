@@ -60,3 +60,4 @@ void LineBuffer::setEof()
     _eofReceived = true;
     _lastLineComplete = true;
 }
+
