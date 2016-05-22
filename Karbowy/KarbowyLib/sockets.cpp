@@ -132,6 +132,12 @@ std::string TcpStream::readLine()
     return _buffer.getFirstLine();
 }
 
+void TcpStream::writeLine(std::string)
+{
+    //TO DO
+
+}
+
 Ipv4Listener::Ipv4Listener(uint16_t port)
 {
     _fd = socket(AF_INET, SOCK_STREAM, 0);

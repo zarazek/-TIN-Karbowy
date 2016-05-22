@@ -8,8 +8,14 @@
 #include <QSqlError>
 #include <QMessageBox>
 #include <thread>
-
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <crypto++/sha.h>
+#include <crypto++/filters.h>
+#include <crypto++/hex.h>
 #include <QDebug>
+#include <sstream>
 
 const char* createEmployeesTable =
 "CREATE TABLE IF NOT EXISTS Employees (\n"
@@ -33,6 +39,10 @@ const char* createEmployeesTasksTable =
 "  finished          BOOL NOT NULL DEFAULT 0,\n"
 "  time_spent        INTEGER NOT NULL DEFAULT 0,"
 "  PRIMARY KEY (employee, task))\n";
+
+const char* createUuidTable =
+"CREATE TABLE IF NOT EXISTS Uuid (\n"
+"  uuid   VARCHAR(100) PRIMARY KEY)";
 
 const char* populateEmployeesTable =
 "INSERT OR IGNORE INTO Employees(login, password, name) VALUES\n"
@@ -66,10 +76,14 @@ const char *queries[] = {
     createEmployeesTable,
     createTasksTable,
     createEmployeesTasksTable,
-    populateEmployeesTable,
-    populateTasksTable,
-    populateEmployeesTasksTable
+    createUuidTable,
+    //populateEmployeesTable,
+    //populateTasksTable,
+    //populateEmployeesTasksTable
 };
+
+const char* insertUuid =
+"INSERT INTO Uuid(uuid) VALUES (?)";
 
 const char *retrieveAllEmployeesQ =
 "SELECT login, password, name, active\n"
@@ -80,9 +94,22 @@ const char *retrieveEmployeesByLoginQ =
 "FROM Employees\n"
 "WHERE login = ?\n";
 
+const char *retrieveUuidQ =
+"SELECT uuid\n"
+"FROM Uuid";
+
 RowRetriever<std::shared_ptr<Employee>,
              string, string, string, bool>
 employeeRetriever(std::make_shared<Employee, const string&, const string&, const string&, bool>);
+
+std::string returnArg(const std::string& arg)
+{
+    return arg;
+}
+
+RowRetriever<std::string,
+             string>
+stringRetriever(returnArg);
 
 static void printEmpl(const Employee& empl)
 {
@@ -90,8 +117,42 @@ static void printEmpl(const Employee& empl)
              << " name = " << empl._name.c_str() << " active = " << empl._active;
 }
 
+static std::string parse(std::string command, std::string line)
+{
+    switch(command)
+    {
+    case "sc":
+        if(line.substr(0,17) != "SERWER CHALLENGE ")
+        {
+            throw std::runtime_error("SERVER CHALLENGE error");
+        }
+        else
+        {
+            return line.substr(18,line.length()-17);
+        }
+    }
+
+}
+
+static std::string SHA(std::string message)
+{
+    CryptoPP::SHA256 hash;
+    std::string digest;
+    CryptoPP::StringSource s(message, true, new CryptoPP::HashFilter(hash, new CryptoPP::HexEncoder(new CryptoPP::StringSink(digest))));
+    return digest;
+}
+
+static void handleConnection(TcpStream connection, std::string strUuid)
+{
+    std::string salt = parse("sc", connection.readLine());
+    std::string response = SHA(strUuid + salt);
+    connection.writeLine("SERVER RESPONSE " + response);
+
+}
+
 int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
+    std::string strUuid;
 
     try {
         Database db("StacjaSzefa.db");
@@ -101,21 +162,37 @@ int main(int argc, char *argv[]) {
             query.execute();
         }
 
-        Query<std::shared_ptr<Employee> > retrieveAllEmployees(
-          db, retrieveAllEmployeesQ, employeeRetriever);
-        retrieveAllEmployees.execute();
-        std::shared_ptr<Employee> empl;
-        while (retrieveAllEmployees.next(empl))
+        Query<std::string> retrieveUuid(
+                    db, retrieveUuidQ, stringRetriever);
+        retrieveUuid.execute();
+
+
+        if (!retrieveUuid.next(strUuid))
         {
-            printEmpl(*empl);
+            boost::uuids::uuid uuid = boost::uuids::random_generator()();
+            std::stringstream ss;
+            ss << uuid;
+            strUuid = ss.str();
+
+            Command<std::string> query(db, insertUuid);
+            query.execute(strUuid);
         }
-        Query<std::shared_ptr<Employee>, string> retrieveSpecificEmployees(
-            db, retrieveEmployeesByLoginQ, employeeRetriever);
-        retrieveSpecificEmployees.execute("wwisniew");
-        while (retrieveSpecificEmployees.next(empl))
-        {
-            printEmpl(*empl);
-        }
+
+//        Query<std::shared_ptr<Employee> > retrieveAllEmployees(
+//          db, retrieveAllEmployeesQ, employeeRetriever);
+//        retrieveAllEmployees.execute();
+//        std::shared_ptr<Employee> empl;
+//        while (retrieveAllEmployees.next(empl))
+//        {
+//            printEmpl(*empl);
+//        }
+//        Query<std::shared_ptr<Employee>, string> retrieveSpecificEmployees(
+//            db, retrieveEmployeesByLoginQ, employeeRetriever);
+//        retrieveSpecificEmployees.execute("wwisniew");
+//        while (retrieveSpecificEmployees.next(empl))
+//        {
+//            printEmpl(*empl);
+//        }
     } catch (std::exception &ex)
     {
         QMessageBox::critical(0, "Wyjątek",
@@ -148,6 +225,12 @@ int main(int argc, char *argv[]) {
 
     //TODO
     //wątki, nasłuchujące IPv4 oraz IPv6
+    Ipv4Listener listener(21455);
+    while(true)
+    {
+        TcpStream stream = listener.awaitConnection();
+        std::thread client(handleConnection, std::move(stream), strUuid);
+    }
 
     MainWindow w;
     w.show();

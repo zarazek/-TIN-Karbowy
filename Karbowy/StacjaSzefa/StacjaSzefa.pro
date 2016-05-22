@@ -37,3 +37,5 @@ LIBS += -L$$OUT_PWD/../KarbowyLib/ -lKarbowyLib
 
 INCLUDEPATH += $$PWD/../KarbowyLib
 DEPENDPATH += $$PWD/../KarbowyLib
+
+unix: PKGCONFIG += libcrypto++

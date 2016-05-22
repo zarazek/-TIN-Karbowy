@@ -66,6 +66,7 @@ public:
     ~TcpStream();
 
     std::string readLine();
+    void writeLine(std::string);
 private:
     static const int INVALID_DESCRIPTOR = -1;
 
