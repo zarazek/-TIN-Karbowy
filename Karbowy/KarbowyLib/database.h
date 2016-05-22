@@ -116,9 +116,9 @@ protected:
     QueryBase(Database &db, const string& queryStr);
 
     template <typename... Args>
-    void bindParams(Args&&... args)
+    void bindParams(Args... args)
     {
-        bind(1, std::forward<Args>(args)...);
+        bind(1, args...);
     }
 
     bool executeStep();
@@ -130,57 +130,57 @@ private:
     }
 
     template <typename... RestOfArgs>
-    void bind(int paramIdx, bool param, RestOfArgs&&... restOfArgs)
+    void bind(int paramIdx, bool param, RestOfArgs... restOfArgs)
     {
         int errorCode = sqlite3_bind_int(_stmt, paramIdx, param ? 1 : 0);
         checkBindError(errorCode, paramIdx, param);
-        bind(paramIdx + 1, std::forward<RestOfArgs>(restOfArgs)...);
+        bind(paramIdx + 1, restOfArgs...);
     }
 
     template <typename... RestOfArgs>
-    void bind(int paramIdx, boost::optional<bool> param, RestOfArgs&&... restOfArgs)
+    void bind(int paramIdx, const boost::optional<bool>& param, RestOfArgs... restOfArgs)
     {
         int errorCode = param ?
                         sqlite3_bind_int(_stmt, paramIdx, *param ? 1 : 0) :
                         sqlite3_bind_null(_stmt, paramIdx);
         checkBindError(errorCode, paramIdx, param);
-        bind(paramIdx + 1, std::forward<RestOfArgs>(restOfArgs)...);
+        bind(paramIdx + 1, restOfArgs...);
     }
 
     template <typename... RestOfArgs>
-    void bind(int paramIdx, int param, RestOfArgs&&... restOfArgs)
+    void bind(int paramIdx, int param, RestOfArgs... restOfArgs)
     {
         int errorCode = sqlite3_bind_int(_stmt, paramIdx, param);
         checkBindError(errorCode, paramIdx, param);
-        bind(paramIdx + 1, std::forward<RestOfArgs>(restOfArgs)...);
+        bind(paramIdx + 1, restOfArgs...);
     }
 
     template <typename... RestOfArgs>
-    void bind(int paramIdx, boost::optional<int> param, RestOfArgs&&... restOfArgs)
+    void bind(int paramIdx, const boost::optional<int>& param, RestOfArgs... restOfArgs)
     {
         int errorCode = param ?
                         sqlite3_bind_int(_stmt, paramIdx, *param) :
                         sqlite3_bind_null(_stmt, paramIdx);
         checkBindError(errorCode, paramIdx, param);
-        bind(paramIdx + 1, std::forward<RestOfArgs>(restOfArgs)...);
+        bind(paramIdx + 1, restOfArgs...);
     }
 
     template <typename... RestOfArgs>
-    void bind(int paramIdx, string param, RestOfArgs&&... restOfArgs)
+    void bind(int paramIdx, const string& param, RestOfArgs... restOfArgs)
     {
         int errorCode = sqlite3_bind_text(_stmt, paramIdx, param.c_str(), param.length(), SQLITE_TRANSIENT);
         checkBindError(errorCode, paramIdx, param);
-        bind(paramIdx + 1, std::forward<RestOfArgs>(restOfArgs)...);
+        bind(paramIdx + 1, restOfArgs...);
     }
 
     template <typename... RestOfArgs>
-    void bind(int paramIdx, boost::optional<string> param, RestOfArgs&&... restOfArgs)
+    void bind(int paramIdx, const boost::optional<string>& param, RestOfArgs&&... restOfArgs)
     {
         int errorCode = param ?
                         sqlite3_bind_text(_stmt, paramIdx, param->c_str(), param->length(), SQLITE_TRANSIENT) :
                         sqlite3_bind_null(_stmt, paramIdx);
         checkBindError(errorCode, paramIdx, param);
-        bind(paramIdx + 1, std::forward<RestOfArgs>(restOfArgs)...);
+        bind(paramIdx + 1, restOfArgs...);
     }
 
     template <typename T>
@@ -202,9 +202,9 @@ public:
     Command(Database& db, const string& queryStr) :
         QueryBase(db, queryStr) { }
 
-    void execute(Args&&... args)
+    void execute(Args... args)
     {
-        bindParams(std::forward<Args>(args)...);
+        bindParams(args...);
         bool res = executeStep();
         assert(! res);
     }
@@ -343,9 +343,9 @@ public:
         QueryBase(db, queryStr),
         _retriever(retriever) { }
 
-    void execute(Args&&... args)
+    void execute(Args... args)
     {
-        bindParams(std::forward<Args>(args)...);
+        bindParams(args...);
     }
 
     bool next(Result& result)
