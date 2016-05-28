@@ -1,7 +1,8 @@
 TEMPLATE = subdirs
 
 SUBDIRS += \
-    StacjaSzefa \
     KarbowyLib \
+    gtest \
     KarbowyTests \
-    gtest
+    StacjaSzefa \
+    StacjaPracownika

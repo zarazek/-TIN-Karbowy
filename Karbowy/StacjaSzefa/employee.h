@@ -1,15 +1,19 @@
 #ifndef EMPLOYEE_H
 #define EMPLOYEE_H
 
+#include <string>
+
 class Employee
 {
 public:
-    string _login;
-    string _password;
-    string _name;
+    std::string _login;
+    std::string _password;
+    std::string _name;
     bool _active;
 
-    Employee(const string& login, const string& password, const string& name, bool active) :
+    Employee() = default;
+
+    Employee(const std::string& login, const std::string& password, const std::string& name, bool active) :
         _login(login),
         _password(password),
         _name(name),

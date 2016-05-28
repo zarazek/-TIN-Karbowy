@@ -1,10 +1,12 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
+#include "formatedexception.h"
 #include <sqlite3.h>
 #include <string>
 #include <exception>
 #include <memory>
+#include <type_traits>
 #include <boost/optional.hpp>
 #include <boost/variant.hpp>
 
@@ -15,11 +17,10 @@ using std::exception;
 using std::unique_ptr;
 using std::ostream;
 
-class DatabaseError : public exception
+class DatabaseError : public FormatedException
 {
 public:
     DatabaseError(int errorCode, const char* errorMsg);
-    const char* what() const noexcept override;
 
 protected:
     int _errorCode;
@@ -114,6 +115,7 @@ protected:
     sqlite3_stmt *_stmt;
 
     QueryBase(Database &db, const string& queryStr);
+    QueryBase(Database &db, string&& queryStr);
 
     template <typename... Args>
     void bindParams(Args... args)
@@ -196,11 +198,14 @@ private:
 };
 
 template <typename... Args>
-class Command : QueryBase
+class Command : public QueryBase
 {
 public:
     Command(Database& db, const string& queryStr) :
         QueryBase(db, queryStr) { }
+
+    Command(Database& db, string&& queryStr) :
+        QueryBase(db, std::forward<string>(queryStr)) { }
 
     void execute(Args... args)
     {
@@ -218,130 +223,241 @@ public:
     virtual Result retrieveRow(sqlite3_stmt* stmt) = 0;
 };
 
-template <typename Functor, typename Bound>
-struct bound_first
+template <typename F, typename T>
+struct binder
 {
-    Functor _functor;
-    Bound _bound;
+    F f; T t;
 
-    template <typename... RestOfArgs>
-    typename std::result_of<Functor&(Bound, RestOfArgs...)>::type operator()(RestOfArgs&&... args)
+    template <typename... Args>
+    auto operator()(Args&&... args)
+        -> decltype(f(std::move(t), std::forward<Args>(args)...))
     {
-        return _functor(std::move(_bound), std::forward<RestOfArgs>(args)...);
+        return f(std::move(t), std::forward<Args>(args)...);
     }
 };
 
-template <typename Functor, typename Bound>
-bound_first<typename std::decay<Functor>::type, typename std::decay<Bound>::type>
-bind_first(Functor&& functor, Bound&& bound)
+template <typename F, typename T>
+binder<typename std::decay<F>::type, typename std::decay<T>::type> bind_first(F&& f, T&& t)
 {
-    return  { std::forward<Functor>(functor), std::forward<Bound>(bound) };
+    return { std::forward<F>(f), std::forward<T>(t) };
 }
 
-template <typename Result, typename... Args>
-class RowRetriever : public RowRetrieverBase<Result>
+bool retrieveBoolColumn(sqlite3_stmt* stmt, int columnIdx);
+boost::optional<bool> retrieveNullableBoolColumn(sqlite3_stmt* stmt, int columnIdx);
+int retrieveIntColumn(sqlite3_stmt* stmt, int columnIdx);
+boost::optional<int> retrieveNullableIntColumn(sqlite3_stmt* stmt, int columnIdx);
+std::string retrieveStringColumn(sqlite3_stmt* stmt, int columnIdx);
+boost::optional<std::string> retrieveNullableStringColumn(sqlite3_stmt* stmt, int columnIdx);
+
+template <typename Signature>
+struct CallFunctor;
+
+template <typename Result>
+struct CallFunctor<Result()>
 {
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt*, int)
+    {
+        return fn();
+    }
+};
+
+template <typename Result, typename... RestOfArgs>
+struct CallFunctor<Result(bool, RestOfArgs...)>
+{
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
+    {
+        bool value = retrieveBoolColumn(stmt, columnIdx);
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+                                                        stmt,
+                                                        columnIdx + 1);
+    }
+};
+
+template <typename Result, typename... RestOfArgs>
+struct CallFunctor<Result(boost::optional<bool>, RestOfArgs...)>
+{
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
+    {
+        boost::optional<bool> value = retrieveNullableBoolColumn(stmt, columnIdx);
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+                                                        stmt,
+                                                        columnIdx + 1);
+    }
+};
+
+template <typename Result, typename... RestOfArgs>
+struct CallFunctor<Result(int, RestOfArgs...)>
+{
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
+    {
+        int value = retrieveIntColumn(stmt, columnIdx);
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+                                                        stmt,
+                                                        columnIdx + 1);
+    }
+};
+
+template <typename Result, typename... RestOfArgs>
+struct CallFunctor<Result(boost::optional<int>, RestOfArgs...)>
+{
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
+    {
+        boost::optional<int> value = retrieveNullableIntColumn(stmt, std::move(columnIdx));
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, value),
+                                                        stmt,
+                                                        columnIdx + 1);
+    }
+};
+
+template <typename Result, typename... RestOfArgs>
+struct CallFunctor<Result(std::string, RestOfArgs...)>
+{
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
+    {
+        std::string value(retrieveStringColumn(stmt, columnIdx));
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+                                                        stmt,
+                                                        columnIdx + 1);
+    }
+};
+
+template <typename Result, typename... RestOfArgs>
+struct CallFunctor<Result(boost::optional<std::string>, RestOfArgs...)>
+{
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
+    {
+        boost::optional<std::string> value = retrieveNullableStringColumn(stmt, columnIdx);
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+                                                        stmt,
+                                                        columnIdx + 1);
+    }
+};
+
+template <typename PointerToMetod>
+struct ExtractSignature;
+
+template <typename Result, typename Class, typename... Args>
+struct ExtractSignature<Result (Class::*)(Args...)>
+{
+    typedef Result (type)(Args...);
+};
+
+template <typename Result, typename Class, typename... Args>
+struct ExtractSignature<Result (Class::*)(Args...) const>
+{
+    typedef Result (type)(Args...);
+};
+
+template <typename Signature>
+struct ExtractResult;
+
+template <typename R, typename... Args>
+struct ExtractResult<R(Args...)>
+{
+    typedef R type;
+};
+
+template <typename Functor>
+struct FunctorTraits
+{
+    typedef typename std::decay<Functor>::type DecayedFunctor;
+    typedef typename ExtractSignature<decltype(&DecayedFunctor::operator())>::type Signature;
+    typedef typename ExtractResult<Signature>::type Result;
+};
+
+template <typename R, typename... Args>
+struct FunctorTraits<R(Args...)>
+{
+    typedef R (Signature)(Args...);
+    typedef R Result;
+};
+
+template <typename R, typename... Args>
+struct FunctorTraits<R(&)(Args...)>
+{
+    typedef R (Signature)(Args...);
+    typedef R Result;
+};
+
+template <typename R, typename... Args>
+struct FunctorTraits<R(*)(Args...)>
+{
+    typedef R (Signature)(Args...);
+    typedef R Result;
+};
+
+template <typename Signature>
+struct DecayedSignature;
+
+template <typename R>
+struct DecayedSignature<R()>
+{
+    typedef R (type)();
+};
+
+template <typename First, typename Signature>
+struct AddFirstArgument;
+
+template <typename First, typename R, typename... Args>
+struct AddFirstArgument<First, R(Args...)>
+{
+    typedef R (type)(First, Args...);
+};
+
+template <typename R, typename T, typename... Ts>
+struct DecayedSignature<R(T, Ts...)>
+{
+    typedef typename AddFirstArgument<typename std::decay<T>::type,
+                                      typename DecayedSignature<R(Ts...)>::type>::type type;
+};
+
+template <typename Functor>
+class RowRetriever : public RowRetrieverBase<typename FunctorTraits<Functor>::Result>
+{
+private:
+    typedef typename FunctorTraits<Functor>::Signature Signature;
+    typedef typename DecayedSignature<Signature>::type CallSignature;
+    typedef typename FunctorTraits<Functor>::Result Result;
+
+    typename std::decay<Functor>::type _fn;
 public:
-    RowRetriever(std::function<Result(Args...)> fn) :
+    RowRetriever(Functor&& fn) :
         _fn(fn) { }
 
     Result retrieveRow(sqlite3_stmt* stmt) override
     {
-        _stmt = stmt;
-        return callFunction(0, _fn);
-    }
-
-private:
-    std::function<Result(Args...)> _fn;
-    sqlite3_stmt* _stmt;
-
-    Result callFunction(int, const std::function<Result()>& fn)
-    {
-        return fn();
-    }
-
-    template <typename... RestOfArgs>
-    Result callFunction(int columnIdx, const std::function<Result(bool, RestOfArgs...)>& fn)
-    {
-        bool value = retrieveBoolColumn(columnIdx);
-        return callFunction(columnIdx + 1,
-                            std::function<Result(RestOfArgs...)>(bind_first(fn, value)));
-    }
-
-    template <typename... RestOfArgs>
-    Result callFuncton(int columnIdx, const std::function<Result(boost::optional<bool>, RestOfArgs...)>& fn)
-    {
-        boost::optional<bool> value;
-        int type = sqlite3_column_type(_stmt, columnIdx);
-        switch (type)
-        {
-        case SQLITE_NULL:
-            value = boost::none;
-            break;
-        case SQLITE_TEXT:
-            *value = retrieveBoolColumn(columnIdx);
-             break;
-        default:
-            //TODO: throw proper exception
-            throw std::runtime_error("not bool nor null");
-            break;
-        }
-        return callFunction(columnIdx + 1,
-                            std::function<Result(RestOfArgs...)>(bind_first(fn, value)));
-    }
-
-    bool retrieveBoolColumn(int columnIdx)
-    {
-        int type = sqlite3_column_type(_stmt, columnIdx);
-        switch (type)
-        {
-        case SQLITE_TEXT:
-            return textToBool(reinterpret_cast<const char*>(sqlite3_column_text(_stmt, columnIdx)));
-        case SQLITE_INTEGER:
-            return sqlite3_column_int(_stmt, columnIdx);
-        default:
-            //TODO: throw proper exception
-            throw std::runtime_error("not bool");
-        }
-    }
-
-    static bool textToBool(const char* strValue)
-    {
-        if (strcmp(strValue, "TRUE") == 0)
-        {
-            return true;
-        }
-        else if (strcmp(strValue, "FALSE") == 0)
-        {
-            return false;
-        }
-        else
-        {
-            //TODO: throw proper exception
-            throw std::runtime_error(strValue);
-        }
-    }
-
-    template <typename... RestOfArgs>
-    Result callFunction(int columnIdx, const std::function<Result(string, RestOfArgs...)>& fn)
-    {
-       if (sqlite3_column_type(_stmt, columnIdx) != SQLITE_TEXT)
-       {
-           // TODO: throw exception
-       }
-       string value(reinterpret_cast<const char*>(sqlite3_column_text(_stmt, columnIdx)));
-       return callFunction(columnIdx + 1,
-                           std::function<Result(RestOfArgs...)>(bind_first(fn, value)));
+        return CallFunctor<CallSignature>::call(_fn, stmt, 0);
     }
 };
 
 template <typename Result, typename... Args>
-class Query : QueryBase
+class Query : public QueryBase
 {
 public:
-    Query(Database& db, const string& queryStr, RowRetrieverBase<Result>& retriever) :
+    Query(Database& db, const string& queryStr) :
         QueryBase(db, queryStr),
-        _retriever(retriever) { }
+        _retriever(new RowRetriever<Result(Result&&)>(returnArg)) { }
+
+    Query(Database& db, string&& queryStr) :
+        QueryBase(db, std::forward<string>(queryStr)),
+        _retriever(new RowRetriever<Result(Result&&)>(returnArg)) { }
+
+    template <class Functor>
+    Query(Database& db, const string& queryStr, Functor&& fn) :
+        QueryBase(db, queryStr),
+        _retriever(new RowRetriever<Functor>(fn)) { }
+
+    template <class Functor>
+    Query(Database& db, string&& queryStr, Functor&& fn) :
+        QueryBase(db, std::forward<string>(queryStr)),
+        _retriever(new RowRetriever<Functor>(fn)) { }
 
     void execute(Args... args)
     {
@@ -352,7 +468,7 @@ public:
     {
         if (executeStep())
         {
-            result = _retriever.retrieveRow(_stmt);
+            result = _retriever->retrieveRow(_stmt);
             return true;
         }
         else
@@ -361,7 +477,12 @@ public:
         }
     }
 private:
-    RowRetrieverBase<Result>& _retriever;
+    unique_ptr<RowRetrieverBase<Result> > _retriever;
+
+    static Result returnArg(Result&& arg)
+    {
+        return arg;
+    }
 };
 
 

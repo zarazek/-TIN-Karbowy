@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <assert.h>
 
-static void resolve(sa_family_t srcFamily, const std::string& name, void* address, size_t addressLength)
+static void resolve(sa_family_t srcFamily, const std::string& name, void* address, int addressLength)
 {
     hostent hostentBuffer;
     char stringBuffer[512];

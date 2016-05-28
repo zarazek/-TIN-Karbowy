@@ -1,20 +1,8 @@
 #include "database.h"
-#include <sstream>
 
 DatabaseError::DatabaseError(int errorCode, const char* errorMsg) :
     _errorCode(errorCode),
     _errorMsg(errorMsg) { }
-
-const char* DatabaseError::what() const noexcept
-{
-    if (! _whatBuffer)
-    {
-        std::stringstream stream;
-        formatWhatMsg(stream);
-        _whatBuffer = unique_ptr<string>(new string(stream.str()));
-    }
-    return _whatBuffer->c_str();
-}
 
 OpenError::OpenError(int errorCode, const char* errorMsg, const string& fileName) :
     DatabaseError(errorCode, errorMsg),
@@ -164,7 +152,13 @@ sqlite3_stmt* Database::prepareQuery(const string &queryStr)
 QueryBase::QueryBase(Database &db, const string& queryStr) :
     _db(db),
     _queryStr(queryStr),
-    _stmt(db.prepareQuery(queryStr)) { }
+    _stmt(db.prepareQuery(_queryStr)) { }
+
+QueryBase::QueryBase(Database &db, string&& queryStr) :
+    _db(db),
+    _queryStr(queryStr),
+    _stmt(db.prepareQuery(_queryStr)) { }
+
 
 QueryBase::~QueryBase()
 {
@@ -187,5 +181,77 @@ bool QueryBase::executeStep()
             sqlite3_reset(_stmt);
             throw err;
         }
+    }
+}
+
+static bool textToBool(const char* strValue)
+{
+    if (strcmp(strValue, "TRUE") == 0)
+    {
+        return true;
+    }
+    else if (strcmp(strValue, "FALSE") == 0)
+    {
+        return false;
+    }
+    else
+    {
+        //TODO: throw proper exception
+        throw std::runtime_error(strValue);
+    }
+}
+
+bool retrieveBoolColumn(sqlite3_stmt* stmt, int columnIdx)
+{
+    int type = sqlite3_column_type(stmt, columnIdx);
+    switch (type)
+    {
+    case SQLITE_TEXT:
+        return textToBool(reinterpret_cast<const char*>(sqlite3_column_text(stmt, columnIdx)));
+    case SQLITE_INTEGER:
+        return sqlite3_column_int(stmt, columnIdx);
+    default:
+        //TODO: throw proper exception
+        throw std::runtime_error("not bool");
+    }
+}
+
+boost::optional<bool> retrieveNullableBoolColumn(sqlite3_stmt* stmt, int columnIdx)
+{
+    int type = sqlite3_column_type(stmt, columnIdx);
+    switch (type)
+    {
+    case SQLITE_NULL:
+        return boost::none;
+    case SQLITE_TEXT:
+    case SQLITE_INTEGER:
+        return boost::optional<bool>(retrieveBoolColumn(stmt, columnIdx));
+    default:
+        //TODO: throw proper exception
+        throw std::runtime_error("not bool nor null");
+    }
+}
+
+std::string retrieveStringColumn(sqlite3_stmt* stmt, int columnIdx)
+{
+    if (sqlite3_column_type(stmt, columnIdx) != SQLITE_TEXT)
+    {
+        throw("not string");
+    }
+    return reinterpret_cast<const char*>(sqlite3_column_text(stmt, columnIdx));
+}
+
+boost::optional<std::string> retrieveNullableStringColumn(sqlite3_stmt* stmt, int columnIdx)
+{
+    int type = sqlite3_column_type(stmt, columnIdx);
+    switch (type)
+    {
+    case SQLITE_NULL:
+        return boost::none;
+    case SQLITE_TEXT:
+        return boost::optional<std::string>(retrieveStringColumn(stmt, columnIdx));
+    default:
+        // TODO: throw proper exception
+        throw std::runtime_error("not string nor null");
     }
 }

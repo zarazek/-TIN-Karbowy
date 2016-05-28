@@ -18,7 +18,11 @@ SOURCES += main.cpp\
     employeetablemodel.cpp \
     sortfilteremployeemodel.cpp \
     taskstablemodel.cpp \
-    commongui.cpp
+    commongui.cpp \
+    listeners.cpp \
+    server.cpp \
+    clientconnection.cpp \
+    predefinedqueries.cpp
 
 HEADERS  += mainwindow.h \
     task.h \
@@ -26,7 +30,10 @@ HEADERS  += mainwindow.h \
     employeetablemodel.h \
     sortfilteremployeemodel.h \
     taskstablemodel.h \
-    commongui.h
+    commongui.h \
+    clientconnection.h \
+    server.h \
+    predefinedqueries.h
 
 FORMS    += mainwindow.ui
 

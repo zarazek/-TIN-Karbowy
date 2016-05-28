@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       -= gui
+QT       -= core gui
 CONFIG += c++14
 
 TARGET = KarbowyLib
@@ -15,13 +15,15 @@ DEFINES += KARBOWYLIB_LIBRARY
 SOURCES += \
     database.cpp \
     sockets.cpp \
-    linebuffer.cpp
+    linebuffer.cpp \
+    formatedexception.cpp
 
 HEADERS +=\
         karbowylib_global.h \
     database.h \
     sockets.h \
-    linebuffer.h
+    linebuffer.h \
+    formatedexception.h
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3
