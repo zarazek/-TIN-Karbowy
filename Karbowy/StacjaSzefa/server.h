@@ -2,10 +2,10 @@
 #define SERVER_H
 
 #include "sockets.h"
-#include <boost/uuid/uuid.hpp>
 #include <set>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <atomic>
 
 class ClientConnection;
@@ -13,30 +13,33 @@ class ClientConnection;
 class Server
 {
 public:
-    Server(uint16_t port);
+    Server(std::string&& uuid, uint16_t port);
 
-    const boost::uuids::uuid& uuid() const
+    const std::string& uuid() const
     {
         return _uuid;
     }
 
-    const std::string& uuidStr() const;
-
     void start();
     void stop();
+    void removeClient(const std::shared_ptr<ClientConnection>& client);
 private:
-    boost::uuids::uuid _uuid;
-    mutable std::mutex _uuidStrMutex;
-    mutable std::string _uuidStr;
+    std::string _uuid;
     Ipv4Listener _ipv4Listener;
     Ipv6Listener _ipv6Listener;
     std::thread _ipv4Thread;
     std::thread _ipv6Thread;
+    std::thread _reaperThread;
+    std::mutex _clientsToRemoveMutex;
+    std::condition_variable _reaperCondition;
+    std::deque<std::shared_ptr<ClientConnection> > _clientsToRemove;
+    std::mutex _clientsMutex;
     std::set<std::shared_ptr<ClientConnection> > _clients;
     std::atomic<bool> _run;
 
-    void runIpv4Listener();
-    void runIpv6Listener();
+    void runListener(Listener* listener, const char* className);
+    std::shared_ptr<ClientConnection> getClientToRemove();
+    void runReaper();
 };
 
 #endif // SERVER_H

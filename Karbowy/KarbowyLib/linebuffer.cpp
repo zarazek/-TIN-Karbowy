@@ -57,6 +57,8 @@ void LineBuffer::addData(const char* data, size_t size)
 
 void LineBuffer::setEof()
 {
+    assert(! _eofReceived);
+
     _eofReceived = true;
     _lastLineComplete = true;
 }

@@ -16,14 +16,16 @@ SOURCES += \
     database.cpp \
     sockets.cpp \
     linebuffer.cpp \
-    formatedexception.cpp
+    formatedexception.cpp \
+    protocol.cpp
 
 HEADERS +=\
         karbowylib_global.h \
     database.h \
     sockets.h \
     linebuffer.h \
-    formatedexception.h
+    formatedexception.h \
+    protocol.h
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3
@@ -32,4 +34,6 @@ unix {
     target.path = /usr/lib
     INSTALLS += target
 }
+
+unix: PKGCONFIG += libcrypto++
 

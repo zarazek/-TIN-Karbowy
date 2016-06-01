@@ -1,4 +1,5 @@
 #include "sockets.h"
+#include "formatedexception.h"
 
 #include <netdb.h>
 #include <unistd.h>
@@ -6,6 +7,28 @@
 
 #include <stdexcept>
 #include <assert.h>
+
+class SystemError : public FormatedException
+{
+public:
+    SystemError(std::string&& errorMsg);
+private:
+    std::string _errorMsg;
+    int _errno;
+    std::string _errorStr;
+
+    void formatWhatMsg(std::ostream& stream) const override;
+};
+
+SystemError::SystemError(std::string&& errorMsg) :
+    _errorMsg(std::forward<std::string>(errorMsg)),
+    _errno(errno),
+    _errorStr(strerror(_errno)) { }
+
+void SystemError::formatWhatMsg(std::ostream& stream) const
+{
+    stream << _errorMsg << ": " << _errorStr << " (errno " << _errno << ')';
+}
 
 static void resolve(sa_family_t srcFamily, const std::string& name, void* address, int addressLength)
 {
@@ -66,20 +89,47 @@ Ipv6Address Ipv6Address::any(uint16_t port)
     Ipv6Address address;
     memset(&address._address, 0, sizeof(address._address));
     address._address.sin6_family = AF_INET6;
+    address._address.sin6_addr = in6addr_any;
     address._address.sin6_port = htons(port);
     return address;
 }
+
+DescriptorHolder::DescriptorHolder() :
+    _fd(INVALID_DESCRIPTOR) { }
+
+DescriptorHolder::DescriptorHolder(int fd) :
+    _fd(fd) { }
+
+DescriptorHolder::DescriptorHolder(DescriptorHolder&& other) :
+    _fd(other._fd)
+{
+    other._fd = INVALID_DESCRIPTOR;
+}
+
+DescriptorHolder::~DescriptorHolder()
+{
+    if (_fd >= 0)
+    {
+        ::close(_fd);
+    }
+}
+
+TcpStream::TcpStream(int fd) :
+    DescriptorHolder(fd) { }
+
+TcpStream::TcpStream(TcpStream&& other) :
+    DescriptorHolder(std::forward<DescriptorHolder>(other)) { }
 
 TcpStream TcpStream::connect(const Ipv4Address& address)
 {
     TcpStream stream(socket(AF_INET, SOCK_STREAM, 0));
     if (stream._fd < 0)
     {
-        throw std::runtime_error("ipv4 socket error");
+        throw SystemError("IPv4 socket error");
     }
     if (::connect(stream._fd, address.address(), address.length()) < 0)
     {
-        throw std::runtime_error("ipv4 connect error");
+        throw SystemError("IPv4 connect error");
     }
     return stream;
 }
@@ -89,35 +139,32 @@ TcpStream TcpStream::connect(const Ipv6Address& address)
     TcpStream stream(socket(AF_INET6, SOCK_STREAM, 0));
     if (stream._fd < 0)
     {
-        throw std::runtime_error("ipv6 socket error");
+        throw SystemError("IPv6 socket error");
     }
     if (::connect(stream._fd, address.address(), address.length()) < 0)
     {
-        throw std::runtime_error("ipv6 connect error");
+        throw SystemError("IPv6 connect error");
     }
     return stream;
 }
 
-TcpStream::~TcpStream()
-{
-    if (_fd >= 0)
-    {
-        close(_fd);
-    }
-}
-
-
 std::string TcpStream::readLine()
 {
+
     while (! _buffer.hasFullLine())
     {
+        if (_buffer.isEof())
+        {
+            throw std::runtime_error("EOF");
+        }
+
         static const size_t chunkSize = 1024;
 
         char chunk[chunkSize];
-        ssize_t readBytes = read(_fd, chunk, chunkSize);
+        ssize_t readBytes = recv(_fd, chunk, chunkSize, 0);
         if (readBytes < 0)
         {
-            throw std::runtime_error("read error");
+            throw SystemError("read error");
         }
         else if (readBytes == 0)
         {
@@ -142,7 +189,7 @@ void TcpStream::writeLine(const std::string line)
         ssize_t written = write(_fd, charLine + writeBytes, length - writeBytes);
         if (written < 0)
         {
-            throw std::runtime_error("write error");
+            throw SystemError("write error");
         }
         else
         {
@@ -156,26 +203,20 @@ Ipv4Listener::Ipv4Listener(uint16_t port)
     _fd = socket(AF_INET, SOCK_STREAM, 0);
     if(_fd < 0)
     {
-        throw std::runtime_error("ipv4 socket error");
+        throw SystemError("IPv4 socket error");
     }
     Ipv4Address address = Ipv4Address::any(port);
     if(bind(_fd, address.address(), address.length()) < 0)
     {
+        SystemError err("IPv4 bind error");
         close(_fd);
-        throw std::runtime_error("bind ipv4 error");
+        throw err;
     }
     if(listen(_fd, 20) < 0)
     {
+        SystemError err("IPv4 listen error");
         close(_fd);
-        throw std::runtime_error("listen ipv4 error");
-    }
-}
-
-Ipv4Listener::~Ipv4Listener()
-{
-    if (_fd >=0)
-    {
-        close(_fd);
+        throw err;
     }
 }
 
@@ -184,7 +225,7 @@ TcpStream Ipv4Listener::awaitConnection()
     int fd = accept(_fd, nullptr, nullptr);
     if (fd < 0)
     {
-        throw std::runtime_error("accept ipv4 error");
+        throw SystemError("IPv4 accept error");
     }
     return TcpStream(fd);
 }
@@ -194,26 +235,27 @@ Ipv6Listener::Ipv6Listener(uint16_t port)
     _fd = socket(AF_INET6, SOCK_STREAM, 0);
     if(_fd < 0)
     {
-        throw std::runtime_error("ipv6 socket error");
+        throw SystemError("IPv6 socket error");
+    }
+    int on = 1;
+    if (setsockopt(_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0)
+    {
+        SystemError err("IPv6 setsockopt error");
+        close(_fd);
+        throw err;
     }
     Ipv6Address address = Ipv6Address::any(port);
     if(bind(_fd, address.address(), address.length()) < 0)
     {
+        SystemError err("IPv6 bind error");
         close(_fd);
-        throw std::runtime_error("bind ipv6 error");
+        throw err;
     }
     if(listen(_fd, 20) < 0)
     {
+        SystemError err("IPv6 listen error");
         close(_fd);
-        throw std::runtime_error("listen ipv6 error");
-    }
-}
-
-Ipv6Listener::~Ipv6Listener()
-{
-    if (_fd >=0)
-    {
-        close(_fd);
+        throw err;
     }
 }
 
@@ -222,7 +264,7 @@ TcpStream Ipv6Listener::awaitConnection()
     int fd = accept(_fd, nullptr, nullptr);
     if (fd < 0)
     {
-        throw std::runtime_error("accept ipv6 error");
+        throw SystemError("IPv6 accept error");
     }
     return TcpStream(fd);
 }

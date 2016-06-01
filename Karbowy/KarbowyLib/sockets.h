@@ -50,55 +50,62 @@ private:
     Ipv6Address() { }
 };
 
-class TcpStream
+class DescriptorHolder
+{
+public:
+    virtual ~DescriptorHolder();
+protected:
+    static const int INVALID_DESCRIPTOR = -1;
+
+    int _fd;
+
+    DescriptorHolder();
+    explicit DescriptorHolder(int fd);
+    DescriptorHolder(const DescriptorHolder&) = delete;
+    DescriptorHolder(DescriptorHolder&&);
+};
+
+class TcpStream : public DescriptorHolder
 {
 public:
     static TcpStream connect(const Ipv4Address& address);
     static TcpStream connect(const Ipv6Address& address);
 
+    TcpStream() = delete;
     TcpStream(const TcpStream&) = delete;
-    TcpStream(TcpStream&& other) :
-        _fd(other._fd)
-    {
-        other._fd = INVALID_DESCRIPTOR;
-    }
-
-    ~TcpStream();
+    TcpStream(TcpStream&& other);
 
     std::string readLine();
     void writeLine(std::string);
 private:
-    static const int INVALID_DESCRIPTOR = -1;
-
-    int _fd;
     LineBuffer _buffer;
 
-    TcpStream(int fd) :
-        _fd(fd) { }
+    TcpStream(int fd);
+
     friend class Ipv4Listener;
     friend class Ipv6Listener;
 };
 
-class Ipv4Listener
+class Listener : public DescriptorHolder
+{
+public:
+    virtual TcpStream awaitConnection() = 0;
+};
+
+class Ipv4Listener : public Listener
 {
 public:
     Ipv4Listener(uint16_t port);
-    ~Ipv4Listener();
 
-    TcpStream awaitConnection();
-private:
-    int _fd;
+    TcpStream awaitConnection() override;
 };
 
-class Ipv6Listener
+class Ipv6Listener : public Listener
 {
 public:
     Ipv6Listener(uint16_t port);
-    ~Ipv6Listener();
 
-    TcpStream awaitConnection();
-private:
-    int _fd;
+    TcpStream awaitConnection() override;
 };
 
 #endif

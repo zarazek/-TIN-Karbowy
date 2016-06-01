@@ -124,7 +124,7 @@ insertUuidC()
 Query<std::unique_ptr<Employee>, std::string>&
 findEmployeeByLoginQ()
 {
-    static const char* txt = "SELECT login, password, active FROM Employees WHERE login = ?";
+    static const char* txt = "SELECT login, password, name, active FROM Employees WHERE login = ?";
     static Query<std::unique_ptr<Employee>, std::string> *query = nullptr;
 
     if (! query)

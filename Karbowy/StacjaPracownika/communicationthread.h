@@ -6,26 +6,31 @@
 #include <thread>
 #include <atomic>
 #include <boost/variant.hpp>
-#include <boost/uuid/uuid.hpp>
 
 typedef boost::variant<Ipv4Address, Ipv6Address> AddressVariant;
 
 class CommunicationThread
 {
 public:
-    CommunicationThread(const boost::uuids::uuid& myUuid,
+    CommunicationThread(const std::string& myUuid,
                         const AddressVariant& serverAddress,
-                        const boost::uuids::uuid& serverUuid);
+                        const std::string& serverUuid,
+                        const std::string& userId,
+                        const std::string& password);
+    void start();
     void stop();
 
 private:
-    boost::uuids::uuid _myUuid;
+    std::string _myUuid;
     AddressVariant _serverAddress;
-    boost::uuids::uuid _serverUuid;
+    std::string _serverUuid;
+    std::string _userId;
+    std::string _password;
 
-    std::atomic<bool> _running;
+    std::atomic<bool> _run;
     std::thread _thread;
 
+    TcpStream initializeConnection();
     void run();
 };
 

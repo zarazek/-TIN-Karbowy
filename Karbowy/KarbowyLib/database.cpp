@@ -236,7 +236,7 @@ std::string retrieveStringColumn(sqlite3_stmt* stmt, int columnIdx)
 {
     if (sqlite3_column_type(stmt, columnIdx) != SQLITE_TEXT)
     {
-        throw("not string");
+        throw std::runtime_error("not string");
     }
     return reinterpret_cast<const char*>(sqlite3_column_text(stmt, columnIdx));
 }
