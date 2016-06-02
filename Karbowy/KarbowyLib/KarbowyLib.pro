@@ -17,7 +17,9 @@ SOURCES += \
     sockets.cpp \
     linebuffer.cpp \
     formatedexception.cpp \
-    protocol.cpp
+    protocol.cpp \
+    eventdispatcher.cpp \
+    systemerror.cpp
 
 HEADERS +=\
         karbowylib_global.h \
@@ -25,7 +27,9 @@ HEADERS +=\
     sockets.h \
     linebuffer.h \
     formatedexception.h \
-    protocol.h
+    protocol.h \
+    eventdispatcher.h \
+    systemerror.h
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3
