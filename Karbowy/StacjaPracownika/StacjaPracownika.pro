@@ -28,3 +28,5 @@ else:unix: LIBS += -L$$OUT_PWD/../KarbowyLib/ -lKarbowyLib
 
 INCLUDEPATH += $$PWD/../KarbowyLib
 DEPENDPATH += $$PWD/../KarbowyLib
+
+unix|win32: LIBS += -lboost_program_options
