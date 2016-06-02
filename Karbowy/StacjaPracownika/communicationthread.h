@@ -5,6 +5,7 @@
 
 #include <thread>
 #include <atomic>
+#include <boost/uuid/uuid.hpp>
 #include <boost/variant.hpp>
 
 typedef boost::variant<Ipv4Address, Ipv6Address> AddressVariant;
@@ -12,9 +13,9 @@ typedef boost::variant<Ipv4Address, Ipv6Address> AddressVariant;
 class CommunicationThread
 {
 public:
-    CommunicationThread(const std::string& myUuid,
+    CommunicationThread(const boost::uuids::uuid& myUuid,
                         const AddressVariant& serverAddress,
-                        const std::string& serverUuid,
+                        const boost::uuids::uuid& serverUuid,
                         const std::string& userId,
                         const std::string& password);
     void start();

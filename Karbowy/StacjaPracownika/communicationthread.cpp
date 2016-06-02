@@ -1,15 +1,17 @@
 #include "communicationthread.h"
 #include "protocol.h"
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/lexical_cast.hpp>
 #include <iostream>
 
-CommunicationThread::CommunicationThread(const std::string& myUuid,
+CommunicationThread::CommunicationThread(const boost::uuids::uuid& myUuid,
                                          const AddressVariant& serverAddress,
-                                         const std::string& serverUuid,
+                                         const boost::uuids::uuid& serverUuid,
                                          const std::string& userId,
                                          const std::string& password) :
-    _myUuid(myUuid),
+    _myUuid(boost::lexical_cast<std::string>(myUuid)),
     _serverAddress(serverAddress),
-    _serverUuid(serverUuid),
+    _serverUuid(boost::lexical_cast<std::string>(serverUuid)),
     _userId(userId),
     _password(password),
     _run(false) { }
