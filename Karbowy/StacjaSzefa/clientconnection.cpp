@@ -55,7 +55,7 @@ bool ClientConnection::initializeConnection()
 {
     std::string serverChallenge = receiveServerChallenge(_stream);
     sendServerChallengeResponse(_stream, _server.uuid(), serverChallenge);
-    if (receiveServerChallengeAck(_stream))
+    if (! receiveServerChallengeAck(_stream))
     {
         std::cerr << "Server challenge response rejected" << std::endl;
         return false;
@@ -77,7 +77,9 @@ bool ClientConnection::initializeConnection()
     }
     std::string loginChallenge = sendLoginChallenge(_stream);
     std::string loginResponse = receiveLoginChallengeResponse(_stream);
-    if (! verifyChallengeResponse(employee->_password, loginChallenge, loginResponse))
+    bool loginOk = verifyChallengeResponse(employee->_password, loginChallenge, loginResponse);
+    sendLoginChallengeAck(_stream, loginOk);
+    if (! loginOk)
     {
         return false;
     }

@@ -71,7 +71,7 @@ protected:
     void close();
 };
 
-class TcpStream : public Descriptor
+class TcpStream
 {
 public:
     static TcpStream connect(const Ipv4Address& address);
@@ -79,9 +79,9 @@ public:
 
     TcpStream() = delete;
     TcpStream(const TcpStream&) = delete;
-    TcpStream(TcpStream&& other);
+    TcpStream(TcpStream&& other) = default;
     TcpStream& operator=(const TcpStream& other) = delete;
-    TcpStream& operator=(TcpStream&& other);
+    TcpStream& operator=(TcpStream&& other) = default;
 
     std::string readLine();
     void writeLine(std::string);

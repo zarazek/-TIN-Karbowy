@@ -13,7 +13,7 @@ namespace uuid = boost::uuids;
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+//    QApplication a(argc, argv);
 
     uuid::uuid serverUuid;
     std::string serverAddressStr;
@@ -37,8 +37,8 @@ int main(int argc, char *argv[])
         return 1;
     }
     
-    if (vm.count("ipv4") && vm.count("ipv6") ||
-            ! vm.count("ipv4") && ! vm.count("ipv6"))
+    if ((vm.count("ipv4") && vm.count("ipv6")) ||
+        (! vm.count("ipv4") && ! vm.count("ipv6")))
     {
         std::cout << " Wybież jedną wersję: IPv4 lub IP" << std::endl;
         return 1;
@@ -57,9 +57,12 @@ int main(int argc, char *argv[])
     std::string password = "pass4";
     CommunicationThread thr(myUuid, serverAddress, serverUuid, userId, password);
     thr.start();
-    MainWindow w;
-    w.show();
-    int res = a.exec();
+    thr.connect();
+    sleep(10);
+//    MainWindow w;
+//    w.show();
+//    int res = a.exec();
     thr.stop();
-    return res;
+//    return res;
+    return 0;
 }

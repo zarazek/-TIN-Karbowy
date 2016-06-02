@@ -7,6 +7,7 @@
 #include <map>
 #include <functional>
 #include <mutex>
+#include <atomic>
 #include <sys/epoll.h>
 
 class WaitableObject;
@@ -14,14 +15,15 @@ class WaitableObject;
 class MainLoop
 {
 public:
-    MainLoop();
+   MainLoop();
    void addObject(WaitableObject& object);
    void removeObject(WaitableObject& object);
-   void run();
+   void start();
    void exit();
+   void run();
 private:
    Descriptor _fd;
-   bool _run;
+   std::atomic<bool> _run;
 };
 
 class WaitableObject
@@ -59,11 +61,11 @@ private:
 class AsyncSocket : public WaitableObject
 {
 public:
-    typedef std::function<void(AsyncSocket&)> ConnectHandler;
-    typedef std::function<void(AsyncSocket&, const std::string&)> ReadHandler;
-    typedef std::function<void(AsyncSocket&)> WriteHandler;
-    typedef std::function<void(AsyncSocket&)> EofHandler;
-    typedef std::function<void(AsyncSocket&, const char*, int)> ErrorHandler;
+    typedef std::function<void()> ConnectHandler;
+    typedef std::function<void(const std::string&)> ReadHandler;
+    typedef std::function<void()> WriteHandler;
+    typedef std::function<void()> EofHandler;
+    typedef std::function<void(const char*, int)> ErrorHandler;
 
     AsyncSocket(const EofHandler& eofHandler, const ErrorHandler& errorHandler);
     void asyncConnect(const Ipv4Address& address, const ConnectHandler& handler);
@@ -103,7 +105,6 @@ class TaskQueue : public WaitableObject
 {
 public:
     TaskQueue();
-    ~TaskQueue();
     void addTask(const std::function<void()>& task);
 private:
     Descriptor _readFd;
@@ -116,6 +117,8 @@ private:
     void onReadyToWrite() override;
     void onEof() override;
     void onError() override;
+
+    std::function<void()> getTask();
 };
 
 

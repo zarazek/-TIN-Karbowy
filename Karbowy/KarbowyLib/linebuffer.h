@@ -9,6 +9,9 @@ class LineBuffer
 public:
     LineBuffer();
     LineBuffer(const LineBuffer&) = delete;
+    LineBuffer(LineBuffer&& other) = default;
+    LineBuffer& operator=(const LineBuffer&) = delete;
+    LineBuffer& operator=(LineBuffer&&) = default;
 
     bool hasFullLine() const;
     std::string getFirstLine();

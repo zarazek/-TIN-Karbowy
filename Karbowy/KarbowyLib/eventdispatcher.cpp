@@ -2,6 +2,7 @@
 #include "systemerror.h"
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <assert.h>
 
 MainLoop::MainLoop() :
@@ -83,6 +84,11 @@ void MainLoop::run()
     }
 }
 
+void MainLoop::start()
+{
+    _run = true;
+}
+
 void MainLoop::exit()
 {
     _run = false;
@@ -145,13 +151,13 @@ void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler 
     _fd = Descriptor(socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0));
     if (_fd < 0)
     {
-        _errorHandler(*this, "IPv4 socket error", errno);
+        _errorHandler("IPv4 socket error", errno);
     }
     int err = connect(_fd, address.address(), address.length());
     if (err == 0)
     {
         _state = State_CONNECTED;
-        handler(*this);
+        handler();
     }
     else if (err < 0)
     {
@@ -163,7 +169,7 @@ void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler 
         }
         else
         {
-            _errorHandler(*this, "IPv4 connect error", errno);
+            _errorHandler("IPv4 connect error", errno);
         }
     }
 }
@@ -176,13 +182,13 @@ void AsyncSocket::asyncConnect(const Ipv6Address &address, const ConnectHandler 
     _fd = Descriptor(socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0));
     if (_fd < 0)
     {
-        _errorHandler(*this, "IPv6 socket error", errno);
+        _errorHandler("IPv6 socket error", errno);
     }
     int err = connect(_fd, address.address(), address.length());
     if (err == 0)
     {
         _state = State_CONNECTED;
-        handler(*this);
+        handler();
     }
     else if (err < 0)
     {
@@ -194,7 +200,7 @@ void AsyncSocket::asyncConnect(const Ipv6Address &address, const ConnectHandler 
         }
         else
         {
-            _errorHandler(*this, "IPv6 connect error", errno);
+            _errorHandler("IPv6 connect error", errno);
         }
     }
 }
@@ -205,11 +211,11 @@ void AsyncSocket::asyncReadLine(const ReadHandler& handler)
 
     if (_inputBuffer.hasFullLine())
     {
-        handler(*this, _inputBuffer.getFirstLine());
+        handler(_inputBuffer.getFirstLine());
     }
     else if (_inputBuffer.isEof())
     {
-        _eofHandler(*this);
+        _eofHandler();
     }
     else
     {
@@ -223,7 +229,7 @@ void AsyncSocket::asyncWrite(const std::string& str, const WriteHandler& handler
     _outputBuffer.insert(_outputBuffer.end(), str.begin(), str.end());
     if (writeWhilePossible())
     {
-        handler(*this);
+        handler();
     }
     else
     {
@@ -250,14 +256,14 @@ void AsyncSocket::onReadyToRead()
         }
         else if (errno != EAGAIN && errno != EWOULDBLOCK)
         {
-            _errorHandler(*this, "read error", errno);
+            _errorHandler("read error", errno);
             return;
         }
     }
     while (bytesRead >= 0);
     if (_inputBuffer.hasFullLine())
     {
-        _readHandler(*this, _inputBuffer.getFirstLine());
+        _readHandler(_inputBuffer.getFirstLine());
     }
     else
     {
@@ -273,14 +279,14 @@ void AsyncSocket::onReadyToWrite()
         if (! detectError())
         {
             _state = State_CONNECTED;
-            _connectHandler(*this);
+            _connectHandler();
         }
         break;
     case State_CONNECTED:
     {
         if (writeWhilePossible())
         {
-            _writeHandler(*this);
+            _writeHandler();
         }
         else
         {
@@ -295,7 +301,7 @@ void AsyncSocket::onReadyToWrite()
 
 void AsyncSocket::onEof()
 {
-    _eofHandler(*this);
+    _eofHandler();
 }
 
 void AsyncSocket::onError()
@@ -309,7 +315,7 @@ bool AsyncSocket::detectError()
     socklen_t len = sizeof(error);
     if (getsockopt(_fd, SOL_SOCKET, SO_ERROR, &error, &len)  < 0)
     {
-        _errorHandler(*this, "getsockopt error", errno);
+        _errorHandler("getsockopt error", errno);
         return true;
     }
     if (error == 0)
@@ -318,7 +324,7 @@ bool AsyncSocket::detectError()
     }
     else
     {
-        _errorHandler(*this, "socket error", error);
+        _errorHandler("socket error", error);
         return true;
     }
 }
@@ -335,11 +341,87 @@ bool AsyncSocket::writeWhilePossible()
         }
         else if (errno != EAGAIN && errno != EWOULDBLOCK)
         {
-            _errorHandler(*this, "write error", errno);
+            _errorHandler("write error", errno);
             return false;
         }
     }
 
     return _outputBuffer.empty();
+}
+
+TaskQueue::TaskQueue()
+{
+    int fds[2];
+    if (pipe2(fds, O_DIRECT) < 0)
+    {
+        throw SystemError("pipe error");
+    }
+    _readFd = Descriptor(fds[0]);
+    _writeFd = Descriptor(fds[1]);
+    if (fcntl(_readFd, F_SETFL, O_NONBLOCK) < 0)
+    {
+        throw SystemError("fcntl error");
+    }
+}
+
+void TaskQueue::addTask(const std::function<void()>& task)
+{
+    {
+        std::lock_guard<std::mutex> guard(_tasksMutex);
+        _tasks.push_back(task);
+    }
+    char dummy = 0;
+    if (write(_writeFd, &dummy, sizeof(dummy)) < 0)
+    {
+        throw SystemError("pipe write error");
+    }
+}
+
+int TaskQueue::descriptor() const
+{
+    return _readFd;
+}
+
+void TaskQueue::onReadyToRead()
+{
+    char dummy;
+    if (read(_readFd, &dummy, sizeof(dummy)) < 0)
+    {
+        throw SystemError("pipe read error");
+    }
+    while (auto task = getTask())
+    {
+        task();
+    }
+}
+
+std::function<void()> TaskQueue::getTask()
+{
+    std::lock_guard<std::mutex> guard(_tasksMutex);
+    if (_tasks.empty())
+    {
+        return std::function<void()>();
+    }
+    else
+    {
+        auto task = _tasks.front();
+        _tasks.pop_front();
+        return task;
+    }
+}
+
+void TaskQueue::onReadyToWrite()
+{
+    assert(false);
+}
+
+void TaskQueue::onEof()
+{
+    throw std::runtime_error("pipe EOF");
+}
+
+void TaskQueue::onError()
+{
+    throw std::runtime_error("pipe error");
 }
 

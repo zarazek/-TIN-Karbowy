@@ -1,7 +1,7 @@
 #ifndef COMMUNICATIONTHREAD_H
 #define COMMUNICATIONTHREAD_H
 
-#include "sockets.h"
+#include "eventdispatcher.h"
 
 #include <thread>
 #include <atomic>
@@ -19,6 +19,7 @@ public:
                         const std::string& userId,
                         const std::string& password);
     void start();
+    void connect();
     void stop();
 
 private:
@@ -27,12 +28,15 @@ private:
     std::string _serverUuid;
     std::string _userId;
     std::string _password;
-
-    std::atomic<bool> _run;
+    MainLoop _mainLoop;
+    TaskQueue _queue;
+    std::unique_ptr<AsyncSocket> _conn;
     std::thread _thread;
 
-    TcpStream initializeConnection();
+//    TcpStream initializeConnection();
     void run();
+    void startConnection();
+    void sendServerChallenge();
 };
 
 #endif // COMMUNICATIONTHREAD_H

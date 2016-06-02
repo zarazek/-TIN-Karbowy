@@ -88,6 +88,7 @@ Descriptor::Descriptor(Descriptor&& other) :
 Descriptor& Descriptor::operator=(Descriptor&& other)
 {
     std::swap(_fd, other._fd);
+    return *this;
 }
 
 Descriptor::~Descriptor()
@@ -111,8 +112,6 @@ void Descriptor::close()
 TcpStream::TcpStream(Descriptor&& fd) :
     _fd(std::forward<Descriptor>(fd)) { }
 
-TcpStream::TcpStream(TcpStream&& other) :
-    Descriptor(std::forward<Descriptor>(other)) { }
 
 TcpStream TcpStream::connect(const Ipv4Address& address)
 {
