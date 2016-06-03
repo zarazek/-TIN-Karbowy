@@ -33,10 +33,26 @@ private:
     std::unique_ptr<AsyncSocket> _conn;
     std::thread _thread;
 
-//    TcpStream initializeConnection();
+    std::string _serverChallenge;
+
     void run();
+
     void startConnection();
-    void sendServerChallenge();
+    void restartConnection();
+    void afterConnect();
+    void afterSendServerChallenge(const std::string& serverChallenge);
+    void afterReceiveServerChallengeResponse(const std::string& serverResponse);
+    void afterSendServerChallengeAck();
+    void afterReceiveClientChallenge(const std::string& clientChallenge);
+    void afterSendClientChallengeResponse();
+    void afterReceiveClientChallengeAck(bool clientOk);
+    void afterSendClientUuid();
+    void afterSendLoginRequest();
+    void afterReceiveLoginChallenge(const std::string& loginChallenge);
+    void afterSendLoginChallengeResponse();
+    void afterReceiveLoginChallengeAck(bool loginOk);
+
+    void executeTask();
 };
 
 #endif // COMMUNICATIONTHREAD_H

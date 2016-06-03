@@ -5,6 +5,7 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <set>
 #include <functional>
 #include <mutex>
 #include <atomic>
@@ -22,7 +23,8 @@ public:
    void exit();
    void run();
 private:
-   Descriptor _fd;
+   std::set <WaitableObject*> _objects;
+   std::map<int, WaitableObject*> _descriptorsToObjects;
    std::atomic<bool> _run;
 };
 
@@ -47,13 +49,13 @@ private:
     virtual int descriptor() const = 0;
     void handleReadyToRead();
     void handleReadyToWrite();
-    void handleEof();
-    void handleError();
+//    void handleEof();
+//    void handleError();
 
     virtual void onReadyToRead() = 0;
     virtual void onReadyToWrite() = 0;
-    virtual void onEof() = 0;
-    virtual void onError() = 0;
+//    virtual void onEof() = 0;
+//    virtual void onError() = 0;
 
     friend class MainLoop;
 };
@@ -94,8 +96,8 @@ private:
     int descriptor() const override;
     void onReadyToRead() override;
     void onReadyToWrite() override;
-    void onEof() override;
-    void onError() override;
+//    void onEof() override;
+//    void onError() override;
 
     bool detectError();
     bool writeWhilePossible();
@@ -115,8 +117,8 @@ private:
     int descriptor() const override;
     void onReadyToRead() override;
     void onReadyToWrite() override;
-    void onEof() override;
-    void onError() override;
+//    void onEof() override;
+//    void onError() override;
 
     std::function<void()> getTask();
 };

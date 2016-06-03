@@ -1,36 +1,22 @@
 #include "eventdispatcher.h"
 #include "systemerror.h"
-#include <string.h>
+#include <sys/select.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 #include <assert.h>
 
 MainLoop::MainLoop() :
-    _fd(epoll_create1(0)),
-    _run(true)
-{
-    if (_fd < 0)
-    {
-        throw SystemError("epoll_create1 error");
-    }
-}
+    _run(false) { }
 
 void MainLoop::addObject(WaitableObject& obj)
 {
     assert(obj._loop == nullptr);
 
-    int fd = obj.descriptor();
-    assert(fd >= 0);
-    int whatToWaitFor = obj._whatToWaitFor;
-    epoll_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.events = whatToWaitFor | EPOLLONESHOT;
-    ev.data.fd = fd;
-    ev.data.ptr = &obj;
-    if (epoll_ctl(_fd, EPOLL_CTL_ADD, fd, &ev) < 0)
-    {
-        throw SystemError("epoll_clt add error");
-    }
+    auto res1 = _objects.insert(&obj);
+    assert(res1.second);
+    auto res2 = _descriptorsToObjects.insert(std::make_pair(obj.descriptor(), &obj));
+    assert(res2.second);
     obj._loop = this;
 }
 
@@ -38,47 +24,64 @@ void MainLoop::removeObject(WaitableObject& obj)
 {
     assert(obj._loop == this);
 
-    if (epoll_ctl(_fd, EPOLL_CTL_DEL, obj.descriptor(), nullptr) < 0)
-    {
-        throw SystemError("epoll_clt del error");
-    }
-    obj._loop = nullptr;
+    size_t numOfRemovedObjects = _objects.erase(&obj);
+    assert(numOfRemovedObjects == 1);
+    numOfRemovedObjects = _descriptorsToObjects.erase(obj.descriptor());
+    assert(numOfRemovedObjects == 1);
 }
 
 void MainLoop::run()
 {
     while (_run)
     {
-        epoll_event ev;
-        int numOfEvents = epoll_wait(_fd, &ev, 1, std::numeric_limits<int>::max());
-        if (numOfEvents < 0)
+        fd_set readDescriptors, writeDescriptors;
+        int maxFd = -1;
+        FD_ZERO(&readDescriptors);
+        FD_ZERO(&writeDescriptors);
+        for (auto obj : _objects)
         {
-            throw SystemError("epoll_wait error");
+            int whatToWaitFor = obj->_whatToWaitFor;
+            int fd = obj->descriptor();
+            if (whatToWaitFor & WaitableObject::WaitFor_READ)
+            {
+                FD_SET(fd, &readDescriptors);
+            }
+            if (whatToWaitFor & WaitableObject::WaitFor_WRITE)
+            {
+                FD_SET(fd, &writeDescriptors);
+            }
+            if (whatToWaitFor)
+            {
+                if (fd > maxFd)
+                {
+                    maxFd = fd;
+                }
+            }
         }
-        assert(numOfEvents <= 1);
-        if (numOfEvents)
+        if (select(maxFd + 1, &readDescriptors, &writeDescriptors, nullptr, nullptr) < 0)
         {
-            WaitableObject* obj = static_cast<WaitableObject*>(ev.data.ptr);
-            if (ev.events & EPOLLIN)
+            throw SystemError("select error");
+        }
+        for (int i = 0; i <= maxFd; ++i)
+        {
+            if (FD_ISSET(i, &readDescriptors))
             {
-                obj->handleReadyToRead();
+                auto it = _descriptorsToObjects.find(i);
+                if (it != _descriptorsToObjects.end())
+                {
+                    it->second->handleReadyToRead();
+                }
             }
-            if (ev.events & EPOLLOUT)
+        }
+        for (int i = 0; i <= maxFd; ++i)
+        {
+            if (FD_ISSET(i, &readDescriptors))
             {
-                obj->handleReadyToWrite();
-            }
-            if (ev.events & EPOLLHUP)
-            {
-                obj->handleEof();
-            }
-            if (ev.events & EPOLLERR)
-            {
-                obj->handleError();
-            }
-            if (obj->_loop == this)
-            {
-                ev.events = obj->_whatToWaitFor | EPOLLONESHOT;
-                epoll_ctl(_fd, EPOLL_CTL_MOD, ev.data.fd, &ev);
+                auto it = _descriptorsToObjects.find(i);
+                if (it != _descriptorsToObjects.end())
+                {
+                    it->second->handleReadyToWrite();
+                }
             }
         }
     }
@@ -124,19 +127,19 @@ void WaitableObject::handleReadyToWrite()
     onReadyToWrite();
 }
 
-void WaitableObject::handleEof()
-{
-    assert(_loop);
+//void WaitableObject::handleEof()
+//{
+//    assert(_loop);
 
-    onEof();
-}
+//    onEof();
+//}
 
-void WaitableObject::handleError()
-{
-    assert(_loop);
+//void WaitableObject::handleError()
+//{
+//    assert(_loop);
 
-    onError();
-}
+//    onError();
+//}
 
 AsyncSocket::AsyncSocket(const EofHandler& eofHandler, const ErrorHandler& errorHandler) :
     _state(State_BEFORE_CONNECTION),
@@ -145,7 +148,6 @@ AsyncSocket::AsyncSocket(const EofHandler& eofHandler, const ErrorHandler& error
 
 void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler &handler)
 {
-    assert(_loop);
     assert(_state == State_BEFORE_CONNECTION);
 
     _fd = Descriptor(socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0));
@@ -176,7 +178,6 @@ void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler 
 
 void AsyncSocket::asyncConnect(const Ipv6Address &address, const ConnectHandler &handler)
 {
-    assert(_loop);
     assert(_state == State_BEFORE_CONNECTION);
 
     _fd = Descriptor(socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0));
@@ -299,15 +300,15 @@ void AsyncSocket::onReadyToWrite()
     }
 }
 
-void AsyncSocket::onEof()
-{
-    _eofHandler();
-}
+//void AsyncSocket::onEof()
+//{
+//    _eofHandler();
+//}
 
-void AsyncSocket::onError()
-{
-    detectError();
-}
+//void AsyncSocket::onError()
+//{
+//    detectError();
+//}
 
 bool AsyncSocket::detectError()
 {
@@ -352,7 +353,7 @@ bool AsyncSocket::writeWhilePossible()
 TaskQueue::TaskQueue()
 {
     int fds[2];
-    if (pipe2(fds, O_DIRECT) < 0)
+    if (pipe2(fds, 0) < 0)
     {
         throw SystemError("pipe error");
     }
@@ -362,6 +363,7 @@ TaskQueue::TaskQueue()
     {
         throw SystemError("fcntl error");
     }
+    _whatToWaitFor |= WaitFor_READ;
 }
 
 void TaskQueue::addTask(const std::function<void()>& task)
@@ -393,6 +395,7 @@ void TaskQueue::onReadyToRead()
     {
         task();
     }
+    _whatToWaitFor |= WaitFor_READ;
 }
 
 std::function<void()> TaskQueue::getTask()
@@ -415,13 +418,13 @@ void TaskQueue::onReadyToWrite()
     assert(false);
 }
 
-void TaskQueue::onEof()
-{
-    throw std::runtime_error("pipe EOF");
-}
+//void TaskQueue::onEof()
+//{
+//    throw std::runtime_error("pipe EOF");
+//}
 
-void TaskQueue::onError()
-{
-    throw std::runtime_error("pipe error");
-}
+//void TaskQueue::onError()
+//{
+//    throw std::runtime_error("pipe error");
+//}
 

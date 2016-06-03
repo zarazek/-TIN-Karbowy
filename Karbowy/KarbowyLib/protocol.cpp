@@ -1,5 +1,6 @@
 #include "protocol.h"
 #include "sockets.h"
+#include "eventdispatcher.h"
 #include "formatedexception.h"
 #include <boost/optional.hpp>
 #include <boost/algorithm/string.hpp>
@@ -159,6 +160,31 @@ std::string sendClientChallenge(TcpStream& conn)
 std::string sendLoginChallenge(TcpStream& conn)
 {
     return sendChallenge(ChallengeType_LOGIN, conn);
+}
+
+static void asyncSendChallenge(ChallengeType type, AsyncSocket& conn, const std::function<void(const std::string&)>& fn)
+{
+    std::string challenge = generateChallenge();
+    auto afterWrite = [challenge, fn]()
+    {
+        fn(challenge);
+    };
+    conn.asyncWrite(concatln(typeToString(type), " CHALLENGE ", challenge), afterWrite);
+}
+
+void asyncSendServerChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn)
+{
+    asyncSendChallenge(ChallengeType_SERVER, conn, fn);
+}
+
+void asyncSendClientChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn)
+{
+    asyncSendChallenge(ChallengeType_CLIENT, conn, fn);
+}
+
+void asyncSendLoginChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn)
+{
+    asyncSendChallenge(ChallengeType_LOGIN, conn, fn);
 }
 
 static std::string receiveChallenge(ChallengeType type, TcpStream& conn)
