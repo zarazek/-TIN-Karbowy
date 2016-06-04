@@ -1,5 +1,6 @@
 #include "predefinedqueries.h"
 #include "employee.h"
+#include "protocol.h"
 #include <vector>
 
 static Database *db = nullptr;
@@ -49,7 +50,7 @@ static const char* populateEmployeesTasksTable =
 "INSERT OR IGNORE INTO EmployeesTasks(employee, task)\n"
 "          SELECT E.login, T.id\n"
 "          FROM Employees AS E JOIN Tasks AS T\n"
-"          WHERE E.name = 'Yauheni Barodzich' AND T.title = 'Pompowanie przedniego koła'\n"
+"          WHERE E.name = 'Wojciech Wiśniewski' AND T.title = 'Pompowanie przedniego koła'\n"
 "UNION ALL SELECT E.login, T.id\n"
 "          FROM Employees AS E JOIN Tasks as T\n"
 "          WHERE E.name = 'Mikhail Lukashevich' AND T.title = 'Pompowanie tylnego koła'\n"
@@ -58,7 +59,7 @@ static const char* populateEmployeesTasksTable =
 "          WHERE E.name = 'Tatsiana Lukashevich' AND T.title = 'Smarowanie łańcucha'\n"
 "UNION ALL SELECT E.login as employee, T.id AS task\n"
 "          FROM Employees AS E JOIN Tasks as T\n"
-"          WHERE E.name = 'Wojciech Wiśniewski' AND T.title = 'Smarowanie łańcucha'\n";
+"          WHERE E.name = 'Yauheni Barodzich' AND T.title = 'Smarowanie łańcucha'\n";
 
 static const char *commands[] = {
     createEmployeesTable,
@@ -131,6 +132,25 @@ findEmployeeByLoginQ()
     {
         query = new Query<std::unique_ptr<Employee>, std::string>(*db, txt,
                                                                    std::make_unique<Employee, std::string&&, std::string&&, std::string&&, bool&&>);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Query<std::unique_ptr<Task>, std::string>&
+findTasksForLoginQ()
+{
+    static const char *txt = "SELECT T.id, T.title, T.description, ET.time_spent\n"
+                             "FROM EmployeesTasks AS ET\n"
+                             "JOIN Employees AS E ON ET.employee = E.login\n"
+                             "JOIN Tasks AS t ON ET.task = T.id\n"
+                             "WHERE E.login = ? AND T.status = 0 AND ET.assignment_active AND NOT ET.finished\n";
+    static Query<std::unique_ptr<Task>, std::string> *query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<std::unique_ptr<Task>, std::string>(*db, txt,
+                                                              std::make_unique<Task, int&&, std::string&&, std::string&&, int&&>);
         queries.push_back(query);
     }
     return *query;

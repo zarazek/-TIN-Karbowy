@@ -13,8 +13,6 @@ namespace uuid = boost::uuids;
 
 int main(int argc, char *argv[])
 {
-//    QApplication a(argc, argv);
-
     uuid::uuid serverUuid;
     std::string serverAddressStr;
     uint16_t port;
@@ -40,29 +38,27 @@ int main(int argc, char *argv[])
     if ((vm.count("ipv4") && vm.count("ipv6")) ||
         (! vm.count("ipv4") && ! vm.count("ipv6")))
     {
-        std::cout << " Wybież jedną wersję: IPv4 lub IP" << std::endl;
+        std::cout << " Wybież jedną wersję: IPv4 lub IPv6" << std::endl;
         return 1;
     }
-    AddressVariant serverAddress = Ipv4Address::any(port);
-    if (vm.count("ipv4"))
-    {
-        serverAddress = Ipv4Address::resolve(serverAddressStr, port);
-    }
-    else
-    {
-        serverAddress = Ipv6Address::resolve(serverAddressStr, port);
-    }    
-    uuid::uuid myUuid = uuid::random_generator()();
-    std::string userId = "wwisniew";
-    std::string password = "pass4";
-    CommunicationThread thr(myUuid, serverAddress, serverUuid, userId, password);
+    ClientConfig config;
+    config._myUuid = boost::lexical_cast<std::string>(uuid::random_generator()());
+    config._serverUuid = boost::lexical_cast<std::string>(serverUuid);
+    config._serverAddress = serverAddressStr;
+    config._serverPort = port;
+    config._userId = "wwisniew";
+    config._password = "pass4";
+    config._useIpv6 = vm.count("ipv6");
+    CommunicationThread thr;
     thr.start();
-    thr.connect();
+    thr.setClientConfig(config);
+    thr.retrieveTasks();
     sleep(10);
-//    MainWindow w;
-//    w.show();
-//    int res = a.exec();
     thr.stop();
-//    return res;
     return 0;
+
+    QApplication a(argc, argv);
+    MainWindow w;
+    w.show();
+    return a.exec();
 }

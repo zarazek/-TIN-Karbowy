@@ -1,7 +1,9 @@
 #include "protocol.h"
 #include "sockets.h"
 #include "eventdispatcher.h"
-#include "formatedexception.h"
+#include "concat.h"
+#include "protocolerror.h"
+#include "parse.h"
 #include <boost/optional.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/uuid/uuid.hpp>
@@ -10,8 +12,6 @@
 #include <crypto++/filters.h>
 #include <crypto++/hex.h>
 #include <crypto++/osrng.h>
-
-#include <sstream>
 
 #include <iostream>
 
@@ -38,43 +38,7 @@ static const char* typeToString(ChallengeType type)
     }
 }
 
-static void streamTo(std::ostream&) { }
 
-template <typename... Args>
-static void streamTo(std::ostream& stream, const char* str, const Args&... args);
-template <typename... Args>
-static void streamTo(std::ostream& stream, const std::string& str, const Args&... args);
-
-template <typename... Args>
-static void streamTo(std::ostream& stream, const char* str, const Args&... args)
-{
-    stream << str;
-    streamTo(stream, args...);
-}
-
-template <typename... Args>
-static void streamTo(std::ostream& stream, const std::string& str, const Args&... args)
-{
-    stream << str;
-    streamTo(stream, args...);
-}
-
-template <typename... Args>
-static std::string concat(const Args&... args)
-{
-    std::ostringstream stream;
-    streamTo(stream, args...);
-    return stream.str();
-}
-
-template <typename... Args>
-static std::string concatln(const Args&... args)
-{
-    std::ostringstream stream;
-    streamTo(stream, args...);
-    stream << std::endl;
-    return stream.str();
-}
 
 static std::string generateChallenge()
 {
@@ -118,26 +82,6 @@ static boost::optional<std::string> extractSuffix(const std::string& str, const 
     }
 }
 
-class ProtocolError : public FormatedException
-{
-public:
-    ProtocolError(const std::string& errorMsg, const std::string& line);
-private:
-    std::string _errorMsg;
-    std::string _line;
-
-    virtual void formatWhatMsg(std::ostream& stream) const;
-};
-
-ProtocolError::ProtocolError(const std::string& errorMsg, const std::string& line) :
-    _errorMsg(errorMsg),
-    _line(line) { }
-
-void ProtocolError::formatWhatMsg(std::ostream& stream) const
-{
-    stream << _errorMsg << ": '" << _line << '\'';
-}
-
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
 static std::string sendChallenge(ChallengeType type, TcpStream& conn)
@@ -160,31 +104,6 @@ std::string sendClientChallenge(TcpStream& conn)
 std::string sendLoginChallenge(TcpStream& conn)
 {
     return sendChallenge(ChallengeType_LOGIN, conn);
-}
-
-static void asyncSendChallenge(ChallengeType type, AsyncSocket& conn, const std::function<void(const std::string&)>& fn)
-{
-    std::string challenge = generateChallenge();
-    auto afterWrite = [challenge, fn]()
-    {
-        fn(challenge);
-    };
-    conn.asyncWrite(concatln(typeToString(type), " CHALLENGE ", challenge), afterWrite);
-}
-
-void asyncSendServerChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn)
-{
-    asyncSendChallenge(ChallengeType_SERVER, conn, fn);
-}
-
-void asyncSendClientChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn)
-{
-    asyncSendChallenge(ChallengeType_CLIENT, conn, fn);
-}
-
-void asyncSendLoginChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn)
-{
-    asyncSendChallenge(ChallengeType_LOGIN, conn, fn);
 }
 
 static std::string receiveChallenge(ChallengeType type, TcpStream& conn)
@@ -368,4 +287,311 @@ std::string receiveLoginRequest(TcpStream& conn)
         throw ProtocolError("Invalid login request", line);
     }
     return *maybeUserId;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
+
+using namespace std::placeholders;
+
+Task::Task(int id, const std::string &title, const std::string &description, int secondsSpent) :
+    _id(id),
+    _title(title),
+    _secondsSpent(secondsSpent)
+{
+    boost::split(_description, description, [](char c){ return c == '\n'; });
+}
+
+AsyncClient::AsyncClient(MainLoop& mainLoop,
+                         const ClientConfig& config,
+                         const std::function<void(const std::string&)>& onError) :
+    _mainLoop(mainLoop),
+    _config(config),
+    _onError(onError),
+    _connected(false),
+    _busy(false) { }
+
+void AsyncClient::retrieveTasks(const TasksCallback& onTasksRetrieved)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+    assert(! _busy);
+
+    _busy = true;
+    _onTasksRetrieved = onTasksRetrieved;
+    if (_connected)
+    {
+        issueRetrieveTasksRequest();
+    }
+    else
+    {
+        startConnection(std::bind(&AsyncClient::issueRetrieveTasksRequest, this));
+    }
+}
+
+void AsyncClient::startConnection(const std::function<void()>& onConnect)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+    assert(! _connected);
+
+    _onConnect = onConnect;
+    AsyncSocket::ConnectHandler afterConnect = std::bind(&AsyncClient::afterConnect, this);
+    try
+    {
+        _conn = std::make_unique<AsyncSocket>(_onError);
+        if (_config._useIpv6)
+        {
+            Ipv6Address addr = Ipv6Address::resolve(_config._serverAddress, _config._serverPort);
+            _conn->asyncConnect(addr, afterConnect);
+        }
+        else
+        {
+            Ipv4Address addr = Ipv4Address::resolve(_config._serverAddress, _config._serverPort);
+            _conn->asyncConnect(addr, afterConnect);
+        }
+        _mainLoop.addObject(*_conn);
+    }
+    catch (std::exception &ex)
+    {
+        handleError(ex.what());
+    }
+}
+
+void AsyncClient::afterConnect()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _serverChallenge = generateChallenge();
+    _conn->asyncWrite(concatln("SERVER CHALLENGE ", _serverChallenge),
+                     std::bind(&AsyncClient::afterSendServerChallenge, this));
+}
+
+void AsyncClient::afterSendServerChallenge()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncReadLine(std::bind(&AsyncClient::afterReceiveServerChallengeResponse, this, _1));
+}
+
+void AsyncClient::afterReceiveServerChallengeResponse(const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    auto response = extractSuffix(line, "SERVER RESPONSE ");
+    if (! response)
+    {
+        handleProtocolError("Invalid server challenge response", line);
+        return;
+    }
+    bool serverOk = verifyChallengeResponse(_config._serverUuid, _serverChallenge, *response);
+    _conn->asyncWrite(concatln("SERVER RESPONSE ", serverOk ? "OK" : "NOK"),
+                     serverOk ? AsyncSocket::WriteHandler(std::bind(&AsyncClient::afterSendServerChallengeAck, this)) :
+                                AsyncSocket::WriteHandler(std::bind(&AsyncClient::handleError, this, "Invalid server challenge response")));
+}
+
+void AsyncClient::afterSendServerChallengeAck()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncReadLine(std::bind(&AsyncClient::afterReceiveClientChallenge, this, _1));
+}
+
+void AsyncClient::afterReceiveClientChallenge(const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    auto challenge = extractSuffix(line, "CLIENT CHALLENGE ");
+    if (! challenge)
+    {
+        handleProtocolError("Invalid client challenge", line);
+        return;
+    }
+    _conn->asyncWrite(concatln("CLIENT RESPONSE ", SHA(_config._serverUuid + *challenge)),
+                     std::bind(&AsyncClient::afterSendClientChallengeResponse, this));
+}
+
+void AsyncClient::afterSendClientChallengeResponse()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncReadLine(std::bind(&AsyncClient::afterReceiveClientChallengeAck, this, _1));
+}
+
+void AsyncClient::afterReceiveClientChallengeAck(const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    static const char* okLine = "CLIENT RESPONSE OK";
+    static const char* nokLine = "CLIENT RESPONSE NOK";
+
+    bool clientOk;
+    if (boost::iequals(line, okLine))
+    {
+        clientOk = true;
+    }
+    else if (boost::iequals(line, nokLine))
+    {
+        clientOk = false;
+    }
+    else
+    {
+        handleProtocolError("Invalid client challenge ack", line);
+        return;
+    }
+
+    if (clientOk)
+    {
+        _conn->asyncWrite(concatln("CLIENT UUID ", _config._myUuid),
+                         std::bind(&AsyncClient::afterSendClientUuid, this));
+    }
+    else
+    {
+        handleError("Client challenge response rejected");
+    }
+}
+
+void AsyncClient::afterSendClientUuid()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncWrite(concatln("LOGIN ", _config._userId),
+                     std::bind(&AsyncClient::afterSendLoginRequest, this));
+}
+
+void AsyncClient::afterSendLoginRequest()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncReadLine(std::bind(&AsyncClient::afterReceiveLoginChallenge, this, _1));
+}
+
+void AsyncClient::afterReceiveLoginChallenge(const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    auto challenge = extractSuffix(line, "LOGIN CHALLENGE ");
+    if (! challenge)
+    {
+        handleProtocolError("Invalid login challenge", line);
+        return;
+    }
+    _conn->asyncWrite(concatln("LOGIN RESPONSE ", SHA(_config._password + *challenge)),
+                     std::bind(&AsyncClient::afterSendLoginChallengeResponse, this));
+}
+
+void AsyncClient::afterSendLoginChallengeResponse()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncReadLine(std::bind(&AsyncClient::afterReceiveLoginChallengeAck, this, _1));
+}
+
+void AsyncClient::afterReceiveLoginChallengeAck(const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    static const char* okLine = "LOGIN RESPONSE OK";
+    static const char* nokLine = "LOGIN RESPONSE NOK";
+
+    bool loginOk;
+    if (boost::iequals(line, okLine))
+    {
+        loginOk = true;
+    }
+    else if (boost::iequals(line, nokLine))
+    {
+        loginOk = false;
+    }
+    else
+    {
+        handleProtocolError("Invalid login challenge ack", line);
+        return;
+    }
+
+    if (loginOk)
+    {
+        _onConnect();
+    }
+    else
+    {
+        handleError("Login challenge response rejected");
+    }
+}
+
+void AsyncClient::issueRetrieveTasksRequest()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncWrite("RETRIEVE TASKS\n", std::bind(&AsyncClient::startReceivingTasks, this));
+}
+
+void AsyncClient::startReceivingTasks()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncReadLine(std::bind(&AsyncClient::receiveTaskHeader, this, _1));
+}
+
+void AsyncClient::receiveTaskHeader(const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    if (_currentTask)
+    {
+        _tasks.emplace_back(std::move(_currentTask));
+    }
+    if (boost::iequals(line, "END TASKS"))
+    {
+        _busy = false;
+        _onTasksRetrieved(std::move(_tasks));
+    }
+    else
+    {
+        _currentTask = std::make_unique<Task>();
+        if (parse(line,
+                  "TASK ", IntToken(_currentTask->_id),
+                  " TITLE ", QuotedStringToken(_currentTask->_title),
+                  " SPENT ", IntToken(_currentTask->_secondsSpent)))
+        {
+            _conn->asyncReadLine(std::bind(&AsyncClient::receiveTaskDescription, this, _1));
+        }
+        else
+        {
+            handleProtocolError("Invalid task header", line);
+        }
+    }
+}
+
+void AsyncClient::receiveTaskDescription(const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    if (line.empty())
+    {
+        _conn->asyncReadLine(std::bind(&AsyncClient::receiveTaskHeader, this, _1));
+    }
+    else
+    {
+        _currentTask->_description.push_back(line);
+        _conn->asyncReadLine(std::bind(&AsyncClient::receiveTaskDescription, this, _1));
+    }
+}
+
+void AsyncClient::handleProtocolError(const std::string& errorMsg, const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    handleError(concat("Protocol error: ", errorMsg, ": '", line, '\''));
+}
+
+void AsyncClient::handleError(const std::string& errorMsg)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _connected = false;
+    _busy = false;
+    if (_conn)
+    {
+        _mainLoop.removeObject(*_conn);
+        _conn.reset();
+    }
+    _onError(errorMsg);
 }

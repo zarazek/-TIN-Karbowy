@@ -19,6 +19,7 @@ public:
    MainLoop();
    void addObject(WaitableObject& object);
    void removeObject(WaitableObject& object);
+   void removeAllObjects();
    void start();
    void exit();
    void run();
@@ -49,13 +50,9 @@ private:
     virtual int descriptor() const = 0;
     void handleReadyToRead();
     void handleReadyToWrite();
-//    void handleEof();
-//    void handleError();
 
     virtual void onReadyToRead() = 0;
     virtual void onReadyToWrite() = 0;
-//    virtual void onEof() = 0;
-//    virtual void onError() = 0;
 
     friend class MainLoop;
 };
@@ -63,13 +60,12 @@ private:
 class AsyncSocket : public WaitableObject
 {
 public:
+    typedef std::function<void(const std::string&)> ErrorHandler;
     typedef std::function<void()> ConnectHandler;
     typedef std::function<void(const std::string&)> ReadHandler;
     typedef std::function<void()> WriteHandler;
-    typedef std::function<void()> EofHandler;
-    typedef std::function<void(const char*, int)> ErrorHandler;
 
-    AsyncSocket(const EofHandler& eofHandler, const ErrorHandler& errorHandler);
+    AsyncSocket(const ErrorHandler& onError);
     void asyncConnect(const Ipv4Address& address, const ConnectHandler& handler);
     void asyncConnect(const Ipv6Address& address, const ConnectHandler& handler);
     void asyncReadLine(const ReadHandler& handler);
@@ -87,7 +83,6 @@ private:
     Descriptor _fd;
     LineBuffer _inputBuffer;
     std::vector<char> _outputBuffer;
-    EofHandler _eofHandler;
     ErrorHandler _errorHandler;
     ConnectHandler _connectHandler;
     ReadHandler _readHandler;
@@ -96,11 +91,11 @@ private:
     int descriptor() const override;
     void onReadyToRead() override;
     void onReadyToWrite() override;
-//    void onEof() override;
-//    void onError() override;
 
     bool detectError();
     bool writeWhilePossible();
+    void handleError(const std::string& errorMsg, int errorCode);
+    void handleEof();
 };
 
 class TaskQueue : public WaitableObject

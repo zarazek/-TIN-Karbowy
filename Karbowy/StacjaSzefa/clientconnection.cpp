@@ -1,18 +1,24 @@
 #include "clientconnection.h"
 #include "protocol.h"
+#include "parse.h"
+#include "concat.h"
+#include "protocolerror.h"
 #include "server.h"
 #include "predefinedqueries.h"
 #include "employee.h"
+#include <boost/algorithm/string.hpp>
 #include <signal.h>
 
 #include <iostream>
 
 ClientConnection::ClientConnection(Server& server, TcpStream&& stream) :
     _server(server),
-    _stream(std::move(stream)) { }
+    _stream(std::move(stream)),
+    _run(false) { }
 
 void ClientConnection::start()
 {
+    _run = true;
     _thread = std::thread(&ClientConnection::run, this);
 }
 
@@ -90,7 +96,27 @@ bool ClientConnection::initializeConnection()
 
 void ClientConnection::handleCommand(const std::string& line)
 {
-    // TODO
+    if (boost::iequals(line, "RETRIEVE TASKS"))
+    {
+        auto& query = findTasksForLoginQ();
+        std::cout << "User ID = " << _userId << std::endl;
+        query.execute(_userId);
+        std::unique_ptr<Task> task;
+        while (query.next(task))
+        {
+            _stream.writeLine(concatln("TASK ", task->_id, " TITLE ", quoteString(task->_title), " SPENT ", task->_secondsSpent));
+            for (const auto& line : task->_description)
+            {
+                _stream.writeLine(concatln(line));
+            }
+            _stream.writeLine("\n");
+        }
+        _stream.writeLine("END TASKS\n");
+    }
+    else
+    {
+        throw ProtocolError("Invalid command", line);
+    }
 }
 
 void ClientConnection::run()

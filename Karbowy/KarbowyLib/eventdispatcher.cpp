@@ -1,5 +1,6 @@
 #include "eventdispatcher.h"
 #include "systemerror.h"
+#include "concat.h"
 #include <sys/select.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -28,6 +29,15 @@ void MainLoop::removeObject(WaitableObject& obj)
     assert(numOfRemovedObjects == 1);
     numOfRemovedObjects = _descriptorsToObjects.erase(obj.descriptor());
     assert(numOfRemovedObjects == 1);
+    obj._loop = nullptr;
+}
+
+void MainLoop::removeAllObjects()
+{
+    for (auto obj : _objects)
+    {
+        removeObject(*obj);
+    }
 }
 
 void MainLoop::run()
@@ -75,7 +85,7 @@ void MainLoop::run()
         }
         for (int i = 0; i <= maxFd; ++i)
         {
-            if (FD_ISSET(i, &readDescriptors))
+            if (FD_ISSET(i, &writeDescriptors))
             {
                 auto it = _descriptorsToObjects.find(i);
                 if (it != _descriptorsToObjects.end())
@@ -103,10 +113,7 @@ WaitableObject::WaitableObject() :
 
 WaitableObject::~WaitableObject()
 {
-    if (_loop)
-    {
-        _loop->removeObject(*this);
-    }
+    assert(! _loop);
 }
 
 void WaitableObject::handleReadyToRead()
@@ -127,23 +134,8 @@ void WaitableObject::handleReadyToWrite()
     onReadyToWrite();
 }
 
-//void WaitableObject::handleEof()
-//{
-//    assert(_loop);
-
-//    onEof();
-//}
-
-//void WaitableObject::handleError()
-//{
-//    assert(_loop);
-
-//    onError();
-//}
-
-AsyncSocket::AsyncSocket(const EofHandler& eofHandler, const ErrorHandler& errorHandler) :
+AsyncSocket::AsyncSocket(const ErrorHandler& errorHandler) :
     _state(State_BEFORE_CONNECTION),
-    _eofHandler(eofHandler),
     _errorHandler(errorHandler) { }
 
 void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler &handler)
@@ -153,7 +145,7 @@ void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler 
     _fd = Descriptor(socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0));
     if (_fd < 0)
     {
-        _errorHandler("IPv4 socket error", errno);
+        handleError("IPv4 socket error", errno);
     }
     int err = connect(_fd, address.address(), address.length());
     if (err == 0)
@@ -171,7 +163,7 @@ void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler 
         }
         else
         {
-            _errorHandler("IPv4 connect error", errno);
+            handleError("IPv4 connect error", errno);
         }
     }
 }
@@ -183,7 +175,7 @@ void AsyncSocket::asyncConnect(const Ipv6Address &address, const ConnectHandler 
     _fd = Descriptor(socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0));
     if (_fd < 0)
     {
-        _errorHandler("IPv6 socket error", errno);
+        handleError("IPv6 socket error", errno);
     }
     int err = connect(_fd, address.address(), address.length());
     if (err == 0)
@@ -201,7 +193,7 @@ void AsyncSocket::asyncConnect(const Ipv6Address &address, const ConnectHandler 
         }
         else
         {
-            _errorHandler("IPv6 connect error", errno);
+            handleError("IPv6 connect error", errno);
         }
     }
 }
@@ -216,7 +208,7 @@ void AsyncSocket::asyncReadLine(const ReadHandler& handler)
     }
     else if (_inputBuffer.isEof())
     {
-        _eofHandler();
+        handleEof();
     }
     else
     {
@@ -257,7 +249,7 @@ void AsyncSocket::onReadyToRead()
         }
         else if (errno != EAGAIN && errno != EWOULDBLOCK)
         {
-            _errorHandler("read error", errno);
+            handleError("read error", errno);
             return;
         }
     }
@@ -300,23 +292,13 @@ void AsyncSocket::onReadyToWrite()
     }
 }
 
-//void AsyncSocket::onEof()
-//{
-//    _eofHandler();
-//}
-
-//void AsyncSocket::onError()
-//{
-//    detectError();
-//}
-
 bool AsyncSocket::detectError()
 {
     int error = 0;
     socklen_t len = sizeof(error);
     if (getsockopt(_fd, SOL_SOCKET, SO_ERROR, &error, &len)  < 0)
     {
-        _errorHandler("getsockopt error", errno);
+        handleError("getsockopt error", errno);
         return true;
     }
     if (error == 0)
@@ -325,7 +307,7 @@ bool AsyncSocket::detectError()
     }
     else
     {
-        _errorHandler("socket error", error);
+        handleError("socket error", error);
         return true;
     }
 }
@@ -342,13 +324,24 @@ bool AsyncSocket::writeWhilePossible()
         }
         else if (errno != EAGAIN && errno != EWOULDBLOCK)
         {
-            _errorHandler("write error", errno);
+            handleError("write error", errno);
             return false;
         }
     }
 
     return _outputBuffer.empty();
 }
+
+void AsyncSocket::handleError(const std::string& errorMsg, int errorCode)
+{
+    _errorHandler(concat(errorMsg, ": ", strerror(errorCode), " (errno ", errorCode, ')'));
+}
+
+void AsyncSocket::handleEof()
+{
+    _errorHandler("EOF");
+}
+
 
 TaskQueue::TaskQueue()
 {

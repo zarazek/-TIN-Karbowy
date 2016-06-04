@@ -11,7 +11,7 @@ LineBuffer::LineBuffer() :
 bool LineBuffer::hasFullLine() const
 {
     size_t size = _lines.size();
-    return size > 1 || size > 0 && _lastLineComplete;
+    return size > 1 || (size > 0 && _lastLineComplete);
 }
 
 bool LineBuffer::isEof() const

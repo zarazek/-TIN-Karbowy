@@ -1,44 +1,27 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
-#include <string>
+#include "sockets.h"
+#include "eventdispatcher.h"
+#include <memory>
 #include <functional>
-
-class TcpStream;
-class AsyncSocket;
+#include <string>
 
 std::string sendServerChallenge(TcpStream& conn);
 std::string sendClientChallenge(TcpStream& conn);
 std::string sendLoginChallenge(TcpStream &conn);
 
-void asyncSendServerChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
-void asyncSendClientChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
-void asyncSendLoginChallenge(AsyncSocket &conn, const std::function<void(const std::string&)>& fn);
-
 std::string receiveServerChallenge(TcpStream& conn);
 std::string receiveClientChallenge(TcpStream& conn);
 std::string receiveLoginChallenge(TcpStream& conn);
-
-void asyncReceiveServerChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
-void asyncReceiveClientChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
-void asyncReceiveLoginChallenge(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
-
 
 void sendServerChallengeResponse(TcpStream &conn, const std::string& secret, const std::string& challenge);
 void sendClientChallengeResponse(TcpStream &conn, const std::string& secret, const std::string& challenge);
 void sendLoginChallengeResponse(TcpStream &conn, const std::string& secret, const std::string& challenge);
 
-void asyncSendServerChallengeResponse(AsyncSocket &conn, const std::string& secret, const std::string& challenge, const std::function<void()>& fn);
-void asyncSendClientChallengeResponse(AsyncSocket &conn, const std::string& secret, const std::string& challenge, const std::function<void()>& fn);
-void asyncSendLoginChallengeResponse(AsyncSocket &conn, const std::string& secret, const std::string& challenge, const std::function<void()>& fn);
-
 std::string receiveServerChallengeResponse(TcpStream& conn);
 std::string receiveClientChallengeResponse(TcpStream& conn);
 std::string receiveLoginChallengeResponse(TcpStream& conn);
-
-void asyncReceiveServerChallengeResponse(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
-void asyncReceiveClientChallengeResponse(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
-void asyncReceiveLoginChallengeResponse(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
 
 bool verifyChallengeResponse(const std::string& secret, const std::string& challenge, const std::string& response);
 
@@ -46,32 +29,85 @@ void sendServerChallengeAck(TcpStream& conn, bool ok);
 void sendClientChallengeAck(TcpStream& conn, bool ok);
 void sendLoginChallengeAck(TcpStream& conn, bool ok);
 
-void asyncSendServerChallengeAck(AsyncSocket& conn, bool ok, const std::function<void()>& fn);
-void asyncSendClientChallengeAck(AsyncSocket& conn, bool ok, const std::function<void()>& fn);
-void asyncSendLoginChallengeAck(AsyncSocket& conn, bool ok, const std::function<void()>& fn);
-
 bool receiveServerChallengeAck(TcpStream& conn);
 bool receiveClientChallengeAck(TcpStream& conn);
 bool receiveLoginChallengeAck(TcpStream& conn);
 
-void asyncReceiveServerChallengeAck(AsyncSocket& conn, const std::function<void(bool)>& fn);
-void asyncReceiveClientChallengeAck(AsyncSocket& conn, const std::function<void(bool)>& fn);
-void asyncReceiveLoginChallengeAck(AsyncSocket& conn, const std::function<void(bool)>& fn);
-
 void sendClientUuid(TcpStream& conn, const std::string& uuid);
-
-void asyncSendClientUuid(AsyncSocket& conn, const std::string& uuid, const std::function<void()>& fn);
-
 std::string receiveClientUuid(TcpStream& conn);
 
-void asyncReceiveClientUuid(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
 
 void sendLoginRequest(TcpStream& conn, const std::string& userId);
-
-void asyncSendLoginRequest(AsyncSocket& conn, const std::string& userId, const std::function<void()>& fn);
-
 std::string receiveLoginRequest(TcpStream& conn);
 
-void asyncReceiveLoginRequest(AsyncSocket& conn, const std::function<void(const std::string&)>& fn);
+struct ClientConfig
+{
+    std::string _myUuid;
+    std::string _serverUuid;
+    std::string _serverAddress;
+    uint16_t _serverPort;
+    std::string _userId;
+    std::string _password;
+    bool _useIpv6;
+};
+
+struct Task
+{
+    int _id;
+    std::string _title;
+    int _secondsSpent;
+    std::vector<std::string> _description;
+
+    Task() = default;
+    Task(int id, const std::string& title, const std::string& description, int secondsSpent);
+};
+
+class AsyncClient
+{
+public:
+    typedef std::function<void(std::vector<std::unique_ptr<Task> >&&)> TasksCallback;
+
+    AsyncClient(MainLoop &mainLoop,
+                const ClientConfig& config,
+                const std::function<void(const std::string&)>& onError);
+
+    void retrieveTasks(const TasksCallback& onTasksRetrieved);
+private:
+    MainLoop& _mainLoop;
+    const ClientConfig& _config;
+    std::function<void(const std::string&)> _onError;
+    std::unique_ptr<AsyncSocket> _conn;
+    bool _connected;
+    bool _busy;
+
+    std::function<void()> _onConnect;
+    std::string _serverChallenge;
+
+    TasksCallback _onTasksRetrieved;
+    std::unique_ptr<Task> _currentTask;
+    std::vector<std::unique_ptr<Task> > _tasks;
+
+    void startConnection(const std::function<void()>& onConnect);
+    void afterConnect();
+    void afterSendServerChallenge();
+    void afterReceiveServerChallengeResponse(const std::string& line);
+    void afterSendServerChallengeAck();
+    void afterReceiveClientChallenge(const std::string& line);
+    void afterSendClientChallengeResponse();
+    void afterReceiveClientChallengeAck(const std::string& line);
+    void afterSendClientUuid();
+    void afterSendLoginRequest();
+    void afterReceiveLoginChallenge(const std::string& line);
+    void afterSendLoginChallengeResponse();
+    void afterReceiveLoginChallengeAck(const std::string& line);
+
+    void issueRetrieveTasksRequest();
+    void startReceivingTasks();
+    void receiveTaskHeader(const std::string& line);
+    void receiveTaskDescription(const std::string& line);
+
+    void handleProtocolError(const std::string& errorMsg, const std::string& line);
+    void handleError(const std::string& errorMsg);
+};
 
 #endif // PROTOCOL_H

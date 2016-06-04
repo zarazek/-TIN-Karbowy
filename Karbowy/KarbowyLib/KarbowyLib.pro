@@ -19,7 +19,9 @@ SOURCES += \
     formatedexception.cpp \
     protocol.cpp \
     eventdispatcher.cpp \
-    systemerror.cpp
+    systemerror.cpp \
+    parse.cpp \
+    protocolerror.cpp
 
 HEADERS +=\
         karbowylib_global.h \
@@ -29,7 +31,10 @@ HEADERS +=\
     formatedexception.h \
     protocol.h \
     eventdispatcher.h \
-    systemerror.h
+    systemerror.h \
+    concat.h \
+    protocolerror.h \
+    parse.h
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3

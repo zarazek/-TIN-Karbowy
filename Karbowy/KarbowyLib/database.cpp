@@ -232,6 +232,32 @@ boost::optional<bool> retrieveNullableBoolColumn(sqlite3_stmt* stmt, int columnI
     }
 }
 
+int retrieveIntColumn(sqlite3_stmt* stmt, int columnIdx)
+{
+    if (sqlite3_column_type(stmt, columnIdx) == SQLITE_INTEGER)
+    {
+        return sqlite3_column_int(stmt, columnIdx);
+    }
+    else
+    {
+        throw std::runtime_error("not int");
+    }
+}
+
+boost::optional<int> retrieveNullableIntColumn(sqlite3_stmt* stmt, int columnIdx)
+{
+    int type = sqlite3_column_type(stmt, columnIdx);
+    switch (type)
+    {
+    case SQLITE_NULL:
+        return boost::none;
+    case SQLITE_INTEGER:
+        return boost::optional<int>(sqlite3_column_int(stmt, columnIdx));
+    default:
+        throw std::runtime_error("not int nor null");
+    }
+}
+
 std::string retrieveStringColumn(sqlite3_stmt* stmt, int columnIdx)
 {
     if (sqlite3_column_type(stmt, columnIdx) != SQLITE_TEXT)
