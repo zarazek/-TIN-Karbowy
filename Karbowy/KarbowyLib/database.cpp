@@ -65,6 +65,11 @@ public:
         _stream << '\'';
     }
 
+    void operator()(const Timestamp& value) const
+    {
+        _stream << '\'' << formatTimestamp(value) << '\'';
+    }
+
     template <class T>
     void operator()(const boost::optional<T>& value) const
     {

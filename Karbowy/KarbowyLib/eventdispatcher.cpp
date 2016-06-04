@@ -220,14 +220,19 @@ void AsyncSocket::asyncReadLine(const ReadHandler& handler)
 void AsyncSocket::asyncWrite(const std::string& str, const WriteHandler& handler)
 {
     _outputBuffer.insert(_outputBuffer.end(), str.begin(), str.end());
-    if (writeWhilePossible())
+    switch (writeWhilePossible())
     {
+    case WriteResult_COMPLETE:
         handler();
-    }
-    else
-    {
+        break;
+    case WriteResult_INCOMPLETE:
         _writeHandler = handler;
         _whatToWaitFor |= WaitFor_WRITE;
+        break;
+    case WriteResult_ERROR:
+        break;
+    default:
+        assert(false);
     }
 }
 
@@ -276,17 +281,20 @@ void AsyncSocket::onReadyToWrite()
         }
         break;
     case State_CONNECTED:
-    {
-        if (writeWhilePossible())
+        switch (writeWhilePossible())
         {
+        case WriteResult_COMPLETE:
             _writeHandler();
-        }
-        else
-        {
+            break;
+        case WriteResult_INCOMPLETE:
             _whatToWaitFor |= WaitFor_WRITE;
+            break;
+        case WriteResult_ERROR:
+            break;
+        default:
+            assert(false);
         }
         break;
-    }
     default:
         assert(false);
     }
@@ -312,7 +320,7 @@ bool AsyncSocket::detectError()
     }
 }
 
-bool AsyncSocket::writeWhilePossible()
+AsyncSocket::WriteResult AsyncSocket::writeWhilePossible()
 {
     ssize_t bytesWritten = 0;
     while (! _outputBuffer.empty() && bytesWritten >= 0)
@@ -325,11 +333,11 @@ bool AsyncSocket::writeWhilePossible()
         else if (errno != EAGAIN && errno != EWOULDBLOCK)
         {
             handleError("write error", errno);
-            return false;
+            return WriteResult_ERROR;
         }
     }
 
-    return _outputBuffer.empty();
+    return _outputBuffer.empty() ? WriteResult_COMPLETE : WriteResult_INCOMPLETE;
 }
 
 void AsyncSocket::handleError(const std::string& errorMsg, int errorCode)

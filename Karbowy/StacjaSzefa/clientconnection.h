@@ -7,6 +7,7 @@
 
 class Server;
 class Employee;
+class LogEntry;
 
 class ClientConnection : public std::enable_shared_from_this<ClientConnection>
 {
@@ -21,7 +22,7 @@ private:
     TcpStream _stream;
     std::atomic<bool> _run;
     std::thread _thread;
-    std::string _clientUuid;
+    int _clientId;
     std::string _userId;
 
     void run();
@@ -30,6 +31,7 @@ private:
 
 
     void handleCommand(const std::string& line);
+    void insertLogEntry(const LogEntry& entry);
 };
 
 #endif // CLIENTCONNECTION_H

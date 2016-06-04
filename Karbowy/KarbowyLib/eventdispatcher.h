@@ -93,7 +93,15 @@ private:
     void onReadyToWrite() override;
 
     bool detectError();
-    bool writeWhilePossible();
+
+    enum WriteResult
+    {
+        WriteResult_COMPLETE,
+        WriteResult_INCOMPLETE,
+        WriteResult_ERROR
+    };
+
+    WriteResult writeWhilePossible();
     void handleError(const std::string& errorMsg, int errorCode);
     void handleEof();
 };

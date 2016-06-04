@@ -34,7 +34,9 @@ HEADERS +=\
     systemerror.h \
     concat.h \
     protocolerror.h \
-    parse.h
+    parse.h \
+    timestamp.h \
+    logentry.h
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3

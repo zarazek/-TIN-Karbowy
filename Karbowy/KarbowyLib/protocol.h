@@ -3,6 +3,7 @@
 
 #include "sockets.h"
 #include "eventdispatcher.h"
+#include "logentry.h"
 #include <memory>
 #include <functional>
 #include <string>
@@ -65,17 +66,26 @@ struct Task
 class AsyncClient
 {
 public:
-    typedef std::function<void(std::vector<std::unique_ptr<Task> >&&)> TasksCallback;
+    typedef std::function<void(const std::string&)> ErrorCallback;
+    typedef std::function<void()> ConnectCallback;
+    typedef std::vector<std::unique_ptr<Task> > TasksList;
+    typedef std::function<void(TasksList&&)> RetrieveTasksCallback;
+    typedef std::deque<LogEntry> LogEntryList;
+    typedef std::function<LogEntryList(const boost::optional<Timestamp>&)> RetrieveLogsCallback;
+    typedef std::function<void()> LogsSentCallback;
 
     AsyncClient(MainLoop &mainLoop,
                 const ClientConfig& config,
-                const std::function<void(const std::string&)>& onError);
+                const ErrorCallback& onError,
+                const ConnectCallback& onConnect);
 
-    void retrieveTasks(const TasksCallback& onTasksRetrieved);
+    void retrieveTasks(const RetrieveTasksCallback& onTasksRetrieved);
+    void sendLogs(const RetrieveLogsCallback &receiveLogs, const LogsSentCallback& onLogsSent);
 private:
     MainLoop& _mainLoop;
     const ClientConfig& _config;
-    std::function<void(const std::string&)> _onError;
+    ErrorCallback _onErrorHook;
+    ConnectCallback _onConnectHook;
     std::unique_ptr<AsyncSocket> _conn;
     bool _connected;
     bool _busy;
@@ -83,9 +93,13 @@ private:
     std::function<void()> _onConnect;
     std::string _serverChallenge;
 
-    TasksCallback _onTasksRetrieved;
+    RetrieveTasksCallback _onTasksRetrievedHook;
     std::unique_ptr<Task> _currentTask;
-    std::vector<std::unique_ptr<Task> > _tasks;
+    TasksList _tasks;
+
+    RetrieveLogsCallback _retrieveLogs;
+    LogsSentCallback _onLogsSentHook;
+    LogEntryList _entrys;
 
     void startConnection(const std::function<void()>& onConnect);
     void afterConnect();
@@ -105,6 +119,13 @@ private:
     void startReceivingTasks();
     void receiveTaskHeader(const std::string& line);
     void receiveTaskDescription(const std::string& line);
+
+    void issueSendLogsRequest();
+    void readLastTimestamp();
+    void startSendingLogs(const std::string& line);
+    void sendLogEntry();
+    void sendNextLogEntry();
+    void finishSendingLogs();
 
     void handleProtocolError(const std::string& errorMsg, const std::string& line);
     void handleError(const std::string& errorMsg);

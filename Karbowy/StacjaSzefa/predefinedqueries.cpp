@@ -1,6 +1,7 @@
 #include "predefinedqueries.h"
 #include "employee.h"
 #include "protocol.h"
+#include "parse.h"
 #include <vector>
 
 static Database *db = nullptr;
@@ -28,6 +29,19 @@ static const char* createEmployeesTasksTable =
 "  finished          BOOL NOT NULL DEFAULT 0,\n"
 "  time_spent        INTEGER NOT NULL DEFAULT 0,\n"
 "  PRIMARY KEY (employee, task))\n";
+
+static const char* createClientsTable =
+"CREATE TABLE IF NOT EXISTS Clients (\n"
+"  id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+"  uuid VARCHAR(100) UNIQUE)\n";
+
+static const char* createLogsTable =
+"CREATE TABLE IF NOT EXISTS Logs (\n"
+"  type INTEGER NOT NULL,\n"
+"  client REFERENCES Clients(id),\n"
+"  employee REFERENCES Employees(login),\n"
+"  timestamp DATETIME NOT NULL,\n"
+"  task INTEGER)\n";
 
 static const char* createUuidTable =
 "CREATE TABLE IF NOT EXISTS Uuid (\n"
@@ -65,6 +79,8 @@ static const char *commands[] = {
     createEmployeesTable,
     createTasksTable,
     createEmployeesTasksTable,
+    createClientsTable,
+    createLogsTable,
     createUuidTable,
     populateEmployeesTable,
     populateTasksTable,
@@ -151,6 +167,83 @@ findTasksForLoginQ()
     {
         query = new Query<std::unique_ptr<Task>, std::string>(*db, txt,
                                                               std::make_unique<Task, int&&, std::string&&, std::string&&, int&&>);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+static boost::optional<Timestamp> parseTimestamp(const boost::optional<std::string>& str)
+{
+    if (str)
+    {
+        Timestamp timestamp;
+        if (! parse(*str, TimestampToken(timestamp)))
+        {
+            throw std::runtime_error("Invalid timestamp");
+        }
+        return boost::optional<Timestamp>(timestamp);
+    }
+    else
+    {
+        return boost::none;
+    }
+}
+
+Query<boost::optional<Timestamp>, int>&
+findLastEntryTimeQ()
+{
+    static const char *txt = "SELECT MAX(L.timestamp)\n"
+                             "FROM Logs AS L JOIN Clients AS C ON L.client = C.id\n"
+                             "WHERE C.id = ?\n";
+    static Query<boost::optional<Timestamp>, int> *query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<boost::optional<Timestamp>, int>(*db, txt,
+                                                           parseTimestamp);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Command<std::string>&
+insertClientUuidC()
+{
+    static const char* txt = "INSERT OR IGNORE INTO Clients(uuid) VALUES(?)\n";
+    static Command<std::string>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Command<std::string>(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Query<int, std::string>&
+findClientIdByUuidQ()
+{
+    static const char* txt = "SELECT id FROM Clients WHERE uuid = ?\n";
+    static Query<int, std::string>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<int, std::string>(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Command<int, int, std::string, Timestamp, boost::optional<int> >&
+insertLogEntryC()
+{
+    static const char *txt = "INSERT INTO Logs(type, client, employee, timestamp, task)\n"
+                             "VALUES (?, ?, ?, ?, ?)\n";
+    static Command<int, int, std::string, Timestamp, boost::optional<int> >* query = nullptr;
+
+    if (! query)
+    {
+        query = new Command<int, int, std::string, Timestamp, boost::optional<int> >(*db, txt);
         queries.push_back(query);
     }
     return *query;

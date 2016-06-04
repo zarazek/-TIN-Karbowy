@@ -1,4 +1,5 @@
 #include "communicationthread.h"
+#include "predefinedqueries.h"
 #include "mainwindow.h"
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -41,24 +42,46 @@ int main(int argc, char *argv[])
         std::cout << " Wybież jedną wersję: IPv4 lub IPv6" << std::endl;
         return 1;
     }
-    ClientConfig config;
-    config._myUuid = boost::lexical_cast<std::string>(uuid::random_generator()());
-    config._serverUuid = boost::lexical_cast<std::string>(serverUuid);
-    config._serverAddress = serverAddressStr;
-    config._serverPort = port;
-    config._userId = "wwisniew";
-    config._password = "pass4";
-    config._useIpv6 = vm.count("ipv6");
-    CommunicationThread thr;
-    thr.start();
-    thr.setClientConfig(config);
-    thr.retrieveTasks();
-    sleep(10);
-    thr.stop();
-    return 0;
 
-    QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
-    return a.exec();
+    try {
+        initializeDatabase();
+        auto& retrieveUuid = retrieveUuidQ();
+        retrieveUuid.execute();
+        std::string myUuid;
+        if (! retrieveUuid.next(myUuid))
+        {
+            myUuid = boost::lexical_cast<std::string>(boost::uuids::random_generator()());
+            auto& insertUuid = insertUuidC();
+            insertUuid.execute(myUuid);
+        }
+        std::cout << "UUID = " << myUuid << std::endl;
+
+        ClientConfig config;
+        config._myUuid = myUuid;
+        config._serverUuid = boost::lexical_cast<std::string>(serverUuid);
+        config._serverAddress = serverAddressStr;
+        config._serverPort = port;
+        config._userId = "wwisniew";
+        config._password = "pass4";
+        config._useIpv6 = vm.count("ipv6");
+        CommunicationThread thr;
+        thr.start();
+        thr.setClientConfig(config);
+        thr.retrieveTasks();
+        sleep(10);
+        thr.sendLogs();
+        sleep(10);
+        thr.stop();
+        return 0;
+    }
+    catch (std::exception& ex)
+    {
+        std::cerr << "Exception: " << ex.what() << std::endl;
+        return 1;
+    }
+
+//    QApplication a(argc, argv);
+//    MainWindow w;
+//    w.show();
+//    return a.exec();
 }

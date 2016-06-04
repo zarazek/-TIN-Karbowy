@@ -303,20 +303,22 @@ Task::Task(int id, const std::string &title, const std::string &description, int
 
 AsyncClient::AsyncClient(MainLoop& mainLoop,
                          const ClientConfig& config,
-                         const std::function<void(const std::string&)>& onError) :
+                         const ErrorCallback& onError,
+                         const ConnectCallback& onConnect) :
     _mainLoop(mainLoop),
     _config(config),
-    _onError(onError),
+    _onErrorHook(onError),
+    _onConnectHook(onConnect),
     _connected(false),
     _busy(false) { }
 
-void AsyncClient::retrieveTasks(const TasksCallback& onTasksRetrieved)
+void AsyncClient::retrieveTasks(const RetrieveTasksCallback& onTasksRetrieved)
 {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
     assert(! _busy);
 
     _busy = true;
-    _onTasksRetrieved = onTasksRetrieved;
+    _onTasksRetrievedHook = onTasksRetrieved;
     if (_connected)
     {
         issueRetrieveTasksRequest();
@@ -324,6 +326,24 @@ void AsyncClient::retrieveTasks(const TasksCallback& onTasksRetrieved)
     else
     {
         startConnection(std::bind(&AsyncClient::issueRetrieveTasksRequest, this));
+    }
+}
+
+void AsyncClient::sendLogs(const RetrieveLogsCallback& retrieveLogs, const LogsSentCallback& onLogsSent)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+    assert(! _busy);
+
+    _busy = true;
+    _retrieveLogs = retrieveLogs;
+    _onLogsSentHook = onLogsSent;
+    if (_connected)
+    {
+        issueSendLogsRequest();
+    }
+    else
+    {
+        startConnection(std::bind(&AsyncClient::issueSendLogsRequest, this));
     }
 }
 
@@ -336,7 +356,7 @@ void AsyncClient::startConnection(const std::function<void()>& onConnect)
     AsyncSocket::ConnectHandler afterConnect = std::bind(&AsyncClient::afterConnect, this);
     try
     {
-        _conn = std::make_unique<AsyncSocket>(_onError);
+        _conn = std::make_unique<AsyncSocket>(std::bind(&AsyncClient::handleError, this, _1));
         if (_config._useIpv6)
         {
             Ipv6Address addr = Ipv6Address::resolve(_config._serverAddress, _config._serverPort);
@@ -508,6 +528,11 @@ void AsyncClient::afterReceiveLoginChallengeAck(const std::string& line)
 
     if (loginOk)
     {
+        _connected = true;
+        if (_onConnectHook)
+        {
+            _onConnectHook();
+        }
         _onConnect();
     }
     else
@@ -541,7 +566,10 @@ void AsyncClient::receiveTaskHeader(const std::string& line)
     if (boost::iequals(line, "END TASKS"))
     {
         _busy = false;
-        _onTasksRetrieved(std::move(_tasks));
+        if (_onTasksRetrievedHook)
+        {
+            _onTasksRetrievedHook(std::move(_tasks));
+        }
     }
     else
     {
@@ -575,6 +603,98 @@ void AsyncClient::receiveTaskDescription(const std::string& line)
     }
 }
 
+void AsyncClient::issueSendLogsRequest()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncWrite("LOG UPLOAD\n", std::bind(&AsyncClient::readLastTimestamp, this));
+}
+
+void AsyncClient::readLastTimestamp()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _conn->asyncReadLine(std::bind(&AsyncClient::startSendingLogs, this, _1));
+}
+
+void AsyncClient::startSendingLogs(const std::string& line)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    Timestamp lastTimestamp;
+    if (parse(line, "LAST ENTRY AT ", TimestampToken(lastTimestamp)))
+    {
+        _entrys = _retrieveLogs(lastTimestamp);
+    }
+    else if (boost::iequals(line, "NO ENTRYS"))
+    {
+        _entrys = _retrieveLogs(boost::none);
+    }
+    else
+    {
+        handleProtocolError("Invalid last entry line", line);
+        return;
+    }
+    sendLogEntry();
+}
+
+void AsyncClient::sendLogEntry()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    if (_entrys.empty())
+    {
+        _conn->asyncWrite("END LOG\n", std::bind(&AsyncClient::finishSendingLogs, this));
+    }
+    else
+    {
+        const LogEntry &entry = _entrys.front();
+        std::string line = concat(formatTimestamp(entry._timestamp), ' ', entry._userId);
+        switch (entry._type)
+        {
+        case LogEntryType_LOGIN:
+            line = concatln(line, " LOGIN");
+            break;
+        case LogEntryType_LOGOUT:
+            line = concatln(line, " LOGOUT");
+            break;
+        case LogEntryType_TASK_START:
+            line = concatln(line, " TASK ", *entry._taskId, " START");
+            break;
+        case LogEntryType_TASK_PAUSE:
+            line = concatln(line, " TASK ", *entry._taskId, " PAUSE");
+            break;
+        case LogEntryType_TASK_FINISH:
+            line = concatln(line, " TASK ", *entry._taskId, " FINISH");
+            break;
+        default:
+            assert(false);
+        }
+        _conn->asyncWrite(line, std::bind(&AsyncClient::sendNextLogEntry, this));
+    }
+}
+
+void AsyncClient::sendNextLogEntry()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    assert(! _entrys.empty());
+    _entrys.pop_front();
+    sendLogEntry();
+}
+
+void AsyncClient::finishSendingLogs()
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _busy = false;
+    if (_onLogsSentHook)
+    {
+        _onLogsSentHook();
+    }
+}
+
+
 void AsyncClient::handleProtocolError(const std::string& errorMsg, const std::string& line)
 {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
@@ -593,5 +713,8 @@ void AsyncClient::handleError(const std::string& errorMsg)
         _mainLoop.removeObject(*_conn);
         _conn.reset();
     }
-    _onError(errorMsg);
+    if (_onErrorHook)
+    {
+        _onErrorHook(errorMsg);
+    }
 }

@@ -15,12 +15,17 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    communicationthread.cpp
+    communicationthread.cpp \
+    predefinedqueries.cpp
 
 HEADERS  += mainwindow.h \
-    communicationthread.h
+    communicationthread.h \
+    predefinedqueries.h
 
 FORMS    += mainwindow.ui
+
+unix: CONFIG += link_pkgconfig
+unix: PKGCONFIG += sqlite3
 
 win32:CONFIG(release, debug|release): LIBS += -L$$OUT_PWD/../KarbowyLib/release/ -lKarbowyLib
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$OUT_PWD/../KarbowyLib/debug/ -lKarbowyLib

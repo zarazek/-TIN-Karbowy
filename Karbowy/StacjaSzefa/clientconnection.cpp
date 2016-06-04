@@ -89,7 +89,19 @@ bool ClientConnection::initializeConnection()
     {
         return false;
     }
-    _clientUuid = clientUuid;
+
+    auto& insertClientUuid = insertClientUuidC();
+    insertClientUuid.execute(clientUuid);
+    auto& findClientIdByUuid = findClientIdByUuidQ();
+    findClientIdByUuid.execute(clientUuid);
+    if (! findClientIdByUuid.next(_clientId))
+    {
+        throw std::runtime_error("Client id not found after insert");
+    }
+    if (findClientIdByUuid.next(_clientId))
+    {
+        throw std::runtime_error("Many client ids found after insert");
+    }
     _userId = userId;
     return true;
 }
@@ -99,7 +111,6 @@ void ClientConnection::handleCommand(const std::string& line)
     if (boost::iequals(line, "RETRIEVE TASKS"))
     {
         auto& query = findTasksForLoginQ();
-        std::cout << "User ID = " << _userId << std::endl;
         query.execute(_userId);
         std::unique_ptr<Task> task;
         while (query.next(task))
@@ -113,10 +124,84 @@ void ClientConnection::handleCommand(const std::string& line)
         }
         _stream.writeLine("END TASKS\n");
     }
+    else if (boost::iequals(line, "LOG UPLOAD"))
+    {
+        auto& lastEntryTimeQ = findLastEntryTimeQ();
+        lastEntryTimeQ.execute(_clientId);
+        boost::optional<Timestamp> lastEntryTime;
+        if (! lastEntryTimeQ.next(lastEntryTime))
+        {
+            throw std::runtime_error("No results from findLastEntryTime query");
+        }
+        if (lastEntryTimeQ.next(lastEntryTime))
+        {
+            throw std::runtime_error("Too many results from lastEntryTime query");
+        }
+        if (lastEntryTime)
+        {
+            _stream.writeLine(concatln("LAST ENTRY AT ", formatTimestamp(*lastEntryTime)));
+        }
+        else
+        {
+            _stream.writeLine("NO ENTRYS\n");
+        }
+        int taskId;
+        bool loop = true;
+        while (loop)
+        {
+            auto line = _stream.readLine();
+            LogEntry entry;
+            if (parse(line, TimestampToken(entry._timestamp), " ", BareStringToken(entry._userId), " LOGIN"))
+            {
+                entry._type = LogEntryType_LOGIN;
+            }
+            else if (parse(line, TimestampToken(entry._timestamp), " ", BareStringToken(entry._userId), " LOGOUT"))
+            {
+                entry._type = LogEntryType_LOGOUT;
+            }
+            else if (parse(line, TimestampToken(entry._timestamp), " ", BareStringToken(entry._userId),
+                           " TASK ", IntToken(taskId), " START"))
+            {
+                entry._type = LogEntryType_TASK_START;
+                entry._taskId = taskId;
+            }
+            else if (parse(line, TimestampToken(entry._timestamp), " ", BareStringToken(entry._userId),
+                           " TASK ", IntToken(taskId), " PAUSE"))
+            {
+                entry._type = LogEntryType_TASK_PAUSE;
+                entry._taskId = taskId;
+            }
+            else if (parse(line, TimestampToken(entry._timestamp), " ", BareStringToken(entry._userId),
+                           " TASK ", IntToken(taskId), " FINISH"))
+            {
+                entry._type = LogEntryType_TASK_FINISH;
+                entry._taskId = taskId;
+            }
+            else if (boost::iequals(line, "END LOG"))
+            {
+                loop = false;
+            }
+            else
+            {
+                throw ProtocolError("Invalid log entry", line);
+            }
+
+            if (loop)
+            {
+                insertLogEntry(entry);
+            }
+        }
+    }
     else
     {
         throw ProtocolError("Invalid command", line);
     }
+}
+
+void ClientConnection::insertLogEntry(const LogEntry& entry)
+{
+    auto& cmd = insertLogEntryC();
+    cmd.execute(entry._type, _clientId, entry._userId, entry._timestamp, entry._taskId);
 }
 
 void ClientConnection::run()

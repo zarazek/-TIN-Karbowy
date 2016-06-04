@@ -2,6 +2,7 @@
 #define DATABASE_H
 
 #include "formatedexception.h"
+#include "parse.h"
 #include <sqlite3.h>
 #include <string>
 #include <exception>
@@ -73,7 +74,8 @@ public:
 private:
     typedef boost::variant<bool, boost::optional<bool>,
                            int, boost::optional<int>,
-                           string, boost::optional<string> > ParamValue;
+                           string, boost::optional<string>,
+                           Timestamp, boost::optional<Timestamp> > ParamValue;
     int _paramIdx;
     ParamValue _paramValue;
 
@@ -181,6 +183,32 @@ private:
         int errorCode = param ?
                         sqlite3_bind_text(_stmt, paramIdx, param->c_str(), param->length(), SQLITE_TRANSIENT) :
                         sqlite3_bind_null(_stmt, paramIdx);
+        checkBindError(errorCode, paramIdx, param);
+        bind(paramIdx + 1, restOfArgs...);
+    }
+
+    template <typename... RestOfArgs>
+    void bind(int paramIdx, const Timestamp& param, RestOfArgs&&... restOfArgs)
+    {
+        std::string str = formatTimestamp(param);
+        int errorCode = sqlite3_bind_text(_stmt, paramIdx, str.c_str(), str.length(), SQLITE_TRANSIENT);
+        checkBindError(errorCode, paramIdx, param);
+        bind(paramIdx + 1, restOfArgs...);
+    }
+
+    template <typename... RestOfArgs>
+    void bind(int paramIdx, const boost::optional<Timestamp>& param, RestOfArgs&&... restOfArgs)
+    {
+        int errorCode;
+        if (param)
+        {
+            std::string str = formatTimestamp(*param);
+            errorCode = sqlite3_bind_text(_stmt, paramIdx, str.c_str(), str.length(), SQLITE_TRANSIENT);
+        }
+        else
+        {
+            errorCode = sqlite3_bind_null(_stmt, paramIdx);
+        }
         checkBindError(errorCode, paramIdx, param);
         bind(paramIdx + 1, restOfArgs...);
     }
