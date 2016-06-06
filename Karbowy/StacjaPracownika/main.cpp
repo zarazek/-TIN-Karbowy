@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    int retValue = 0;
     try {
         initializeDatabase();
         auto& retrieveUuid = retrieveUuidQ();
@@ -72,13 +73,14 @@ int main(int argc, char *argv[])
         thr.sendLogs();
         sleep(10);
         thr.stop();
-        return 0;
     }
     catch (std::exception& ex)
     {
         std::cerr << "Exception: " << ex.what() << std::endl;
-        return 1;
+        retValue = 1;
     }
+    shutdownDatabase();
+    return retValue;
 
 //    QApplication a(argc, argv);
 //    MainWindow w;

@@ -34,7 +34,8 @@ void MainLoop::removeObject(WaitableObject& obj)
 
 void MainLoop::removeAllObjects()
 {
-    for (auto obj : _objects)
+    std::vector<WaitableObject*> objects(_objects.begin(), _objects.end());
+    for (auto obj : objects)
     {
         removeObject(*obj);
     }
