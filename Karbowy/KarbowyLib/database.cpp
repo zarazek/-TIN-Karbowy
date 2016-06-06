@@ -161,7 +161,7 @@ QueryBase::QueryBase(Database &db, const string& queryStr) :
 
 QueryBase::QueryBase(Database &db, string&& queryStr) :
     _db(db),
-    _queryStr(queryStr),
+    _queryStr(std::forward<std::string>(queryStr)),
     _stmt(db.prepareQuery(_queryStr)) { }
 
 

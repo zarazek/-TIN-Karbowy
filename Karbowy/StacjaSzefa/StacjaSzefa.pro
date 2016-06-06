@@ -46,3 +46,6 @@ INCLUDEPATH += $$PWD/../KarbowyLib
 DEPENDPATH += $$PWD/../KarbowyLib
 
 unix: PKGCONFIG += libcrypto++
+
+QMAKE_CXXFLAGS_RELEASE += -g
+QMAKE_CFLAGS_RELEASE += -g

@@ -35,3 +35,6 @@ INCLUDEPATH += $$PWD/../KarbowyLib
 DEPENDPATH += $$PWD/../KarbowyLib
 
 unix|win32: LIBS += -lboost_program_options
+
+QMAKE_CXXFLAGS_RELEASE += -g
+QMAKE_CFLAGS_RELEASE += -g

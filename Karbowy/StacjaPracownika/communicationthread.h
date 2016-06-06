@@ -15,6 +15,7 @@ public:
     void setClientConfig(ClientConfig config);
     void retrieveTasks();
     void sendLogs();
+    bool busy() const { return _client.busy(); }
 private:
     MainLoop _mainLoop;
     TaskQueue _queue;

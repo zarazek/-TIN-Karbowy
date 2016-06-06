@@ -68,9 +68,13 @@ int main(int argc, char *argv[])
         thr.start();
         thr.setClientConfig(config);
         thr.retrieveTasks();
-        sleep(10);
+        do {
+            sleep(1);
+        } while (thr.busy());
         thr.sendLogs();
-        sleep(10);
+        do {
+            sleep(1);
+        } while (thr.busy());
         thr.stop();
         return 0;
     }

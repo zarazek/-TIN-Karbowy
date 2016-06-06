@@ -81,6 +81,8 @@ public:
 
     void retrieveTasks(const RetrieveTasksCallback& onTasksRetrieved);
     void sendLogs(const RetrieveLogsCallback &receiveLogs, const LogsSentCallback& onLogsSent);
+
+    bool busy() const { return _busy; }
 private:
     MainLoop& _mainLoop;
     const ClientConfig& _config;

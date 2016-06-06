@@ -48,3 +48,6 @@ unix {
 
 unix: PKGCONFIG += libcrypto++
 
+QMAKE_CXXFLAGS_RELEASE += -g
+QMAKE_CFLAGS_RELEASE += -g
+

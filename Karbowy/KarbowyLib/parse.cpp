@@ -124,10 +124,10 @@ bool TimestampToken::parse(std::string::const_iterator &begin, const std::string
                       IntToken(t.tm_year, 4), '-', IntToken(t.tm_mon, 2), '-', IntToken(t.tm_mday, 2), ' ',
                       IntToken(t.tm_hour, 2), ':', IntToken(t.tm_min, 2), ':', IntToken(t.tm_sec, 2), '.', IntToken(millis, 3)))
     {
-        t.tm_year -= 1900;
-        t.tm_mon -= 1;
         return false;
     }
+    t.tm_year -= 1900;
+    t.tm_mon -= 1;
     time_t time = mktime(&t);
     if (time == -1)
     {
