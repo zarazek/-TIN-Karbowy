@@ -353,25 +353,30 @@ void AsyncClient::startConnection(const std::function<void()>& onConnect)
     assert(! _connected);
 
     _onConnect = onConnect;
+    _conn = std::make_unique<AsyncSocket>(std::bind(&AsyncClient::handleError, this, _1));
     AsyncSocket::ConnectHandler afterConnect = std::bind(&AsyncClient::afterConnect, this);
+    bool successSoFar = true;
     try
     {
-        _conn = std::make_unique<AsyncSocket>(std::bind(&AsyncClient::handleError, this, _1));
         if (_config._useIpv6)
         {
             Ipv6Address addr = Ipv6Address::resolve(_config._serverAddress, _config._serverPort);
-            _conn->asyncConnect(addr, afterConnect);
+            successSoFar = _conn->asyncConnect(addr, afterConnect);
         }
         else
         {
             Ipv4Address addr = Ipv4Address::resolve(_config._serverAddress, _config._serverPort);
-            _conn->asyncConnect(addr, afterConnect);
+            successSoFar = _conn->asyncConnect(addr, afterConnect);
         }
-        _mainLoop.addObject(*_conn);
     }
     catch (std::exception &ex)
     {
+        successSoFar = false;
         handleError(ex.what());
+    }
+    if (successSoFar)
+    {
+        _mainLoop.addObject(*_conn);
     }
 }
 
@@ -710,7 +715,7 @@ void AsyncClient::handleError(const std::string& errorMsg)
     _busy = false;
     if (_conn)
     {
-        _mainLoop.removeObject(*_conn);
+        _conn->detach();
         _conn.reset();
     }
     if (_onErrorHook)

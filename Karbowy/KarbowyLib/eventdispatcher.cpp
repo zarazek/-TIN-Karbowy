@@ -34,7 +34,8 @@ void MainLoop::removeObject(WaitableObject& obj)
 
 void MainLoop::removeAllObjects()
 {
-    for (auto obj : _objects)
+    std::vector<WaitableObject*> objects(_objects.begin(), _objects.end());
+    for (auto obj : objects)
     {
         removeObject(*obj);
     }
@@ -116,6 +117,14 @@ WaitableObject::~WaitableObject()
     assert(! _loop);
 }
 
+void WaitableObject::detach()
+{
+    if (_loop)
+    {
+        _loop->removeObject(*this);
+    }
+}
+
 void WaitableObject::handleReadyToRead()
 {
     assert(_loop);
@@ -138,7 +147,7 @@ AsyncSocket::AsyncSocket(const ErrorHandler& errorHandler) :
     _state(State_BEFORE_CONNECTION),
     _errorHandler(errorHandler) { }
 
-void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler &handler)
+bool AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler &handler)
 {
     assert(_state == State_BEFORE_CONNECTION);
 
@@ -146,29 +155,33 @@ void AsyncSocket::asyncConnect(const Ipv4Address &address, const ConnectHandler 
     if (_fd < 0)
     {
         handleError("IPv4 socket error", errno);
+        return false;
     }
     int err = connect(_fd, address.address(), address.length());
-    if (err == 0)
+    if (err >= 0)
     {
         _state = State_CONNECTED;
         handler();
+        return true;
     }
-    else if (err < 0)
+    else
     {
         if (errno == EINPROGRESS)
         {
             _state = State_CONNECTING;
             _connectHandler = handler;
             _whatToWaitFor |= WaitFor_WRITE;
+            return true;
         }
         else
         {
             handleError("IPv4 connect error", errno);
+            return false;
         }
     }
 }
 
-void AsyncSocket::asyncConnect(const Ipv6Address &address, const ConnectHandler &handler)
+bool AsyncSocket::asyncConnect(const Ipv6Address &address, const ConnectHandler &handler)
 {
     assert(_state == State_BEFORE_CONNECTION);
 
@@ -176,24 +189,28 @@ void AsyncSocket::asyncConnect(const Ipv6Address &address, const ConnectHandler 
     if (_fd < 0)
     {
         handleError("IPv6 socket error", errno);
+        return false;
     }
     int err = connect(_fd, address.address(), address.length());
-    if (err == 0)
+    if (err >= 0)
     {
         _state = State_CONNECTED;
         handler();
+        return true;
     }
-    else if (err < 0)
+    else
     {
         if (errno == EINPROGRESS)
         {
             _state = State_CONNECTING;
             _connectHandler = handler;
             _whatToWaitFor |= WaitFor_WRITE;
+            return true;
         }
         else
         {
             handleError("IPv6 connect error", errno);
+            return false;
         }
     }
 }

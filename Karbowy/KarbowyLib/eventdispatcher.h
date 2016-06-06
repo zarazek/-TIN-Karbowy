@@ -40,7 +40,7 @@ public:
 
     WaitableObject();
     virtual ~WaitableObject();
-
+    void detach();
 protected:
     MainLoop* _loop;
     int _whatToWaitFor;
@@ -66,8 +66,8 @@ public:
     typedef std::function<void()> WriteHandler;
 
     AsyncSocket(const ErrorHandler& onError);
-    void asyncConnect(const Ipv4Address& address, const ConnectHandler& handler);
-    void asyncConnect(const Ipv6Address& address, const ConnectHandler& handler);
+    bool asyncConnect(const Ipv4Address& address, const ConnectHandler& handler);
+    bool asyncConnect(const Ipv6Address& address, const ConnectHandler& handler);
     void asyncReadLine(const ReadHandler& handler);
     void asyncWrite(const std::string& line, const WriteHandler &handler);
 private:
