@@ -16,13 +16,17 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     communicationthread.cpp \
-    predefinedqueries.cpp
+    predefinedqueries.cpp \
+    logindialog.cpp
 
 HEADERS  += mainwindow.h \
     communicationthread.h \
-    predefinedqueries.h
+    predefinedqueries.h \
+    logindialog.h
 
-FORMS    += mainwindow.ui
+FORMS    += \
+    mainwindow.ui \
+    logindialog.ui
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3

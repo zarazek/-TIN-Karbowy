@@ -1,22 +1,31 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QDialog>
+#include <QMainWindow>
+#include <memory>
 
 namespace Ui {
 class MainWindow;
 }
 
-class MainWindow : public QDialog
+class CommunicationThread;
+class ClientConfig;
+
+class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(std::string&& myUuid, CommunicationThread& commThread, QWidget *parent = 0);
     ~MainWindow();
 
 private:
     Ui::MainWindow *ui;
+    std::string _myUuid;
+    CommunicationThread& _commThread;
+    std::unique_ptr<ClientConfig> _config;
+
+    void showLoginDialog();
 };
 
 #endif // MAINWINDOW_H

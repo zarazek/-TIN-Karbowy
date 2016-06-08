@@ -2,8 +2,6 @@
 #include "protocol.h"
 #include "parse.h"
 #include "predefinedqueries.h"
-//#include <boost/uuid/uuid_io.hpp>
-//#include <boost/lexical_cast.hpp>
 #include <functional>
 #include <iostream>
 
