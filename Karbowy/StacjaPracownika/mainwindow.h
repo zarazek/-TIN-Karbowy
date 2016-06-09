@@ -26,8 +26,8 @@ private:
     std::unique_ptr<ClientConfig> _config;
 
     void showLoginDialog();
-    void retrieveTasks();
-    void sendLogs();
+    void showAllTasksView();
+    void showSingleTaskView(const QModelIndex& index);
 };
 
 #endif // MAINWINDOW_H

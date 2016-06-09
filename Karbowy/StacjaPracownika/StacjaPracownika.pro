@@ -18,17 +18,20 @@ SOURCES += main.cpp\
     communicationthread.cpp \
     predefinedqueries.cpp \
     logindialog.cpp \
-    tasktablemodel.cpp
+    tasktablemodel.cpp \
+    taskview.cpp
 
 HEADERS  += mainwindow.h \
     communicationthread.h \
     predefinedqueries.h \
     logindialog.h \
-    tasktablemodel.h
+    tasktablemodel.h \
+    taskview.h
 
 FORMS    += \
     mainwindow.ui \
-    logindialog.ui
+    logindialog.ui \
+    taskview.ui
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3

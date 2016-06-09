@@ -23,6 +23,7 @@ MainWindow::MainWindow(std::string&& myUuid, CommunicationThread& commThread, QW
     connect(&_commThread, &CommunicationThread::loggedIn, model, &TaskTableModel::setEmployeeId, Qt::QueuedConnection);
     connect(&_commThread, &CommunicationThread::tasksRetrieved, model, &TaskTableModel::refresh, Qt::QueuedConnection);
     ui->tableView->setModel(model);
+    connect(ui->tableView, &QTableView::doubleClicked, this, &MainWindow::showSingleTaskView);
 }
 
 MainWindow::~MainWindow()
@@ -39,5 +40,10 @@ void MainWindow::showLoginDialog()
         _config = std::move(res);
         _commThread.login(*_config);
     }
+}
+
+void MainWindow::showSingleTaskView(const QModelIndex& index)
+{
+    assert(false);
 }
 
