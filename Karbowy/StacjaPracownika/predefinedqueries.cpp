@@ -183,3 +183,18 @@ findActiveTasksForEmployeeQ()
     }
     return *query;
 }
+
+Command<int, int, Timestamp, boost::optional<int> >&
+insertLogEntryC()
+{
+    static const char *txt = "INSERT INTO Logs(type, employee, timestamp, task)\n"
+                             "VALUES (?, ?, ?, ?)\n";
+    static Command<int, int, Timestamp, boost::optional<int> >* query = nullptr;
+
+    if (! query)
+    {
+        query = new Command<int, int, Timestamp, boost::optional<int> >(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}

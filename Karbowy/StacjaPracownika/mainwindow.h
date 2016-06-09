@@ -9,6 +9,7 @@ class MainWindow;
 }
 
 class CommunicationThread;
+class TaskTableModel;
 class ClientConfig;
 
 class MainWindow : public QMainWindow
@@ -23,11 +24,13 @@ private:
     Ui::MainWindow *ui;
     std::string _myUuid;
     CommunicationThread& _commThread;
+    TaskTableModel *_model;
     std::unique_ptr<ClientConfig> _config;
 
     void showLoginDialog();
     void showAllTasksView();
     void showSingleTaskView(const QModelIndex& index);
+    void showTableView();
 };
 
 #endif // MAINWINDOW_H

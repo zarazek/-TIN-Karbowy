@@ -19,6 +19,21 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     QVariant data(const QModelIndex& index, int role) const override;
 
+    int employeeId() const
+    {
+        return _employeeId;
+    }
+
+    size_t rowCount() const
+    {
+        return _tasks.size();
+    }
+
+    const ClientTask& row(size_t idx) const
+    {
+        return *_tasks.at(idx);
+    }
+
 public slots:
     void setEmployeeId(int employeeId);
     void refresh();

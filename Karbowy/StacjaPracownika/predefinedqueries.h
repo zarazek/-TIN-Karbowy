@@ -19,4 +19,6 @@ Command<int, int, int>& insertTaskAssociationC();
 class ClientTask;
 Query<std::unique_ptr<ClientTask>, int>& findActiveTasksForEmployeeQ();
 
+Command<int, int, Timestamp, boost::optional<int> >& insertLogEntryC();
+
 #endif

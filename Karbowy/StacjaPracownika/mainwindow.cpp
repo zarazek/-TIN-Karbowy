@@ -11,6 +11,8 @@ MainWindow::MainWindow(std::string&& myUuid, CommunicationThread& commThread, QW
     _commThread(commThread)
 {
     ui->setupUi(this);
+    ui->stackedWidget->setCurrentWidget(ui->tableViewPage);
+
     connect(ui->connectAction, &QAction::triggered, this, &MainWindow::showLoginDialog);
     connect(ui->retrieveTasksAction, &QAction::triggered, &_commThread, &CommunicationThread::retrieveTasks);
     connect(ui->sendLogsAction, &QAction::triggered, &_commThread, &CommunicationThread::sendLogs);
@@ -19,11 +21,14 @@ MainWindow::MainWindow(std::string&& myUuid, CommunicationThread& commThread, QW
     QHeaderView *header = ui->tableView->horizontalHeader();
     header->setSectionResizeMode(QHeaderView::ResizeToContents);
     header->setSortIndicatorShown(true);
-    TaskTableModel *model = new TaskTableModel(this);
-    connect(&_commThread, &CommunicationThread::loggedIn, model, &TaskTableModel::setEmployeeId, Qt::QueuedConnection);
-    connect(&_commThread, &CommunicationThread::tasksRetrieved, model, &TaskTableModel::refresh, Qt::QueuedConnection);
-    ui->tableView->setModel(model);
+
+    _model = new TaskTableModel(this);
+    connect(&_commThread, &CommunicationThread::loggedIn, _model, &TaskTableModel::setEmployeeId, Qt::QueuedConnection);
+    connect(&_commThread, &CommunicationThread::tasksRetrieved, _model, &TaskTableModel::refresh, Qt::QueuedConnection);
+    ui->tableView->setModel(_model);
+
     connect(ui->tableView, &QTableView::doubleClicked, this, &MainWindow::showSingleTaskView);
+    connect(ui->taskView, &TaskView::switchingOff, this, &MainWindow::showTableView);
 }
 
 MainWindow::~MainWindow()
@@ -44,6 +49,11 @@ void MainWindow::showLoginDialog()
 
 void MainWindow::showSingleTaskView(const QModelIndex& index)
 {
-    assert(false);
+    ui->taskView->setData(_model->employeeId(), _model->row(index.row()));
+    ui->stackedWidget->setCurrentWidget(ui->taskViewPage);
 }
 
+void MainWindow::showTableView()
+{
+    ui->stackedWidget->setCurrentWidget(ui->tableViewPage);
+}

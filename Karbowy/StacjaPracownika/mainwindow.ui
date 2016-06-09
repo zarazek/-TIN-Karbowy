@@ -20,17 +20,17 @@
       <property name="currentIndex">
        <number>1</number>
       </property>
-      <widget class="QWidget" name="page1">
+      <widget class="QWidget" name="tableViewPage">
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
          <widget class="QTableView" name="tableView"/>
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="page2">
+      <widget class="QWidget" name="taskViewPage">
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <widget class="TaskView" name="widget" native="true"/>
+         <widget class="TaskView" name="taskView" native="true"/>
         </item>
        </layout>
       </widget>
@@ -44,7 +44,7 @@
      <x>0</x>
      <y>0</y>
      <width>587</width>
-     <height>27</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="connectionMenu">

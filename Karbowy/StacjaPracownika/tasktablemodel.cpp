@@ -1,7 +1,7 @@
 #include "tasktablemodel.h"
 #include "predefinedqueries.h"
+#include "utils.h"
 #include <QMessageBox>
-#include <chrono>
 
 TaskTableModel::TaskTableModel(QObject *parent) :
     QAbstractTableModel(parent),
@@ -9,7 +9,7 @@ TaskTableModel::TaskTableModel(QObject *parent) :
 
 int TaskTableModel::rowCount(const QModelIndex&) const
 {
-    return _tasks.size();
+    return rowCount();
 }
 
 int TaskTableModel::columnCount(const QModelIndex&) const
@@ -42,27 +42,7 @@ QVariant TaskTableModel::headerData(int section, Qt::Orientation orientation, in
     return QAbstractTableModel::headerData(section, orientation, role);
 }
 
-static QString formatTime(int timeInSeconds)
-{
-    std::chrono::seconds t(timeInSeconds);
-    int hours = std::chrono::duration_cast<std::chrono::hours>(t).count();
-    t -= std::chrono::hours(hours);
-    int minutes = std::chrono::duration_cast<std::chrono::minutes>(t).count();
-    t -= std::chrono::minutes(minutes);
-    int seconds = t.count();
-    return QString::asprintf("%02d:%02d:%02d", hours, minutes, seconds);
-}
 
-static QString join(const std::vector<std::string>& lst)
-{
-    QString res;
-    if (! lst.empty())
-    {
-        res += lst.cbegin()->c_str();
-        std::for_each(lst.cbegin() + 1, lst.cend(), [&res](const auto& str){ res += '\n'; res += str.c_str(); });
-    }
-    return res;
-}
 
 
 QVariant TaskTableModel::data(const QModelIndex& index, int role) const
