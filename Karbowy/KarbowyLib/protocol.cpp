@@ -4,6 +4,7 @@
 #include "concat.h"
 #include "protocolerror.h"
 #include "parse.h"
+#include "task.h"
 #include <boost/optional.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/uuid/uuid.hpp>
@@ -293,14 +294,6 @@ std::string receiveLoginRequest(TcpStream& conn)
 
 using namespace std::placeholders;
 
-Task::Task(int id, const std::string &title, const std::string &description, int secondsSpent) :
-    _id(id),
-    _title(title),
-    _secondsSpent(secondsSpent)
-{
-    boost::split(_description, description, [](char c){ return c == '\n'; });
-}
-
 AsyncClient::AsyncClient(MainLoop& mainLoop,
                          const ClientConfig& config,
                          const ErrorCallback& onError,
@@ -578,7 +571,7 @@ void AsyncClient::receiveTaskHeader(const std::string& line)
     }
     else
     {
-        _currentTask = std::make_unique<Task>();
+        _currentTask = std::make_unique<ClientTask>();
         if (parse(line,
                   "TASK ", IntToken(_currentTask->_id),
                   " TITLE ", QuotedStringToken(_currentTask->_title),

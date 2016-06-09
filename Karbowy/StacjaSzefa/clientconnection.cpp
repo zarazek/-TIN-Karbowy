@@ -6,6 +6,7 @@
 #include "server.h"
 #include "predefinedqueries.h"
 #include "employee.h"
+#include "task.h"
 #include <boost/algorithm/string.hpp>
 #include <signal.h>
 
@@ -112,7 +113,7 @@ void ClientConnection::handleCommand(const std::string& line)
     {
         auto& query = findTasksForLoginQ();
         query.execute(_userId);
-        std::unique_ptr<Task> task;
+        std::unique_ptr<ClientTask> task;
         while (query.next(task))
         {
             _stream.writeLine(concatln("TASK ", task->_id, " TITLE ", quoteString(task->_title), " SPENT ", task->_secondsSpent));

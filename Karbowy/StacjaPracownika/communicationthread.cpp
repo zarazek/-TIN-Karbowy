@@ -1,6 +1,7 @@
 #include "communicationthread.h"
 #include "protocol.h"
 #include "parse.h"
+#include "task.h"
 #include "predefinedqueries.h"
 #include <functional>
 #include <iostream>
@@ -69,7 +70,11 @@ void CommunicationThread::onConnectSuccess()
     {
         auto& insertUser = insertUserC();
         insertUser.execute(_config._userId);
+        findUserId.execute(_config._userId);
+        bool res = findUserId.next(_userId);
+        assert(res);
     }
+    emit loginSuccessfull(_userId);
 }
 
 void CommunicationThread::retrieveTasksOnCommThread()
@@ -77,7 +82,7 @@ void CommunicationThread::retrieveTasksOnCommThread()
     _client.retrieveTasks(std::bind(&CommunicationThread::onTasksRetrieved, this, _1));
 }
 
-void CommunicationThread::onTasksRetrieved(std::vector<std::unique_ptr<Task> >&& tasks)
+void CommunicationThread::onTasksRetrieved(std::vector<std::unique_ptr<ClientTask> >&& tasks)
 {
     for (const auto& task : tasks)
     {
@@ -99,6 +104,7 @@ void CommunicationThread::onTasksRetrieved(std::vector<std::unique_ptr<Task> >&&
         insertTask.execute(task->_id, task->_title, boost::join(task->_description, "\n"));
         insertAssociation.execute(_userId, task->_id, task->_secondsSpent);
     }
+    emit tasksChanged();
 }
 
 static AsyncClient::LogEntryList retrieveLogs(const boost::optional<Timestamp>&)

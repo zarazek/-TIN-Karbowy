@@ -1,6 +1,6 @@
 #include "predefinedqueries.h"
 #include "employee.h"
-#include "protocol.h"
+#include "task.h"
 #include "parse.h"
 #include <vector>
 
@@ -153,7 +153,7 @@ findEmployeeByLoginQ()
     return *query;
 }
 
-Query<std::unique_ptr<Task>, std::string>&
+Query<std::unique_ptr<ClientTask>, std::string>&
 findTasksForLoginQ()
 {
     static const char *txt = "SELECT T.id, T.title, T.description, ET.time_spent\n"
@@ -161,12 +161,12 @@ findTasksForLoginQ()
                              "JOIN Employees AS E ON ET.employee = E.login\n"
                              "JOIN Tasks AS t ON ET.task = T.id\n"
                              "WHERE E.login = ? AND T.status = 0 AND ET.assignment_active AND NOT ET.finished\n";
-    static Query<std::unique_ptr<Task>, std::string> *query = nullptr;
+    static Query<std::unique_ptr<ClientTask>, std::string> *query = nullptr;
 
     if (! query)
     {
-        query = new Query<std::unique_ptr<Task>, std::string>(*db, txt,
-                                                              std::make_unique<Task, int&&, std::string&&, std::string&&, int&&>);
+        query = new Query<std::unique_ptr<ClientTask>, std::string>(*db, txt,
+                                                                    std::make_unique<ClientTask, int&&, std::string&&, std::string&&, int&&>);
         queries.push_back(query);
     }
     return *query;

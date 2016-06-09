@@ -17,12 +17,14 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     communicationthread.cpp \
     predefinedqueries.cpp \
-    logindialog.cpp
+    logindialog.cpp \
+    tasktablemodel.cpp
 
 HEADERS  += mainwindow.h \
     communicationthread.h \
     predefinedqueries.h \
-    logindialog.h
+    logindialog.h \
+    tasktablemodel.h
 
 FORMS    += \
     mainwindow.ui \

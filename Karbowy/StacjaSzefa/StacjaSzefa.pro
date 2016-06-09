@@ -25,7 +25,6 @@ SOURCES += main.cpp\
     predefinedqueries.cpp
 
 HEADERS  += mainwindow.h \
-    task.h \
     employee.h \
     employeetablemodel.h \
     sortfilteremployeemodel.h \

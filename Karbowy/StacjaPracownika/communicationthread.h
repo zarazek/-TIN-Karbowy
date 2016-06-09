@@ -2,10 +2,13 @@
 #define COMMUNICATIONTHREAD_H
 
 #include "protocol.h"
+#include <QObject>
 #include <thread>
 
-class CommunicationThread
+class CommunicationThread : public QObject
 {
+    Q_OBJECT
+
 public:
     CommunicationThread();
     ~CommunicationThread();
@@ -16,6 +19,10 @@ public:
     void retrieveTasks();
     void sendLogs();
     bool busy() const { return _client.busy(); }
+
+signals:
+    void loginSuccessfull(int employeeId);
+    void tasksChanged();
 private:
     MainLoop _mainLoop;
     TaskQueue _queue;
@@ -27,7 +34,7 @@ private:
     void run();
     void onConnectSuccess();
     void retrieveTasksOnCommThread();
-    void onTasksRetrieved(std::vector<std::unique_ptr<Task> >&& tasks);
+    void onTasksRetrieved(std::vector<std::unique_ptr<ClientTask> >&& tasks);
     void sendLogsOnCommThread();
 };
 

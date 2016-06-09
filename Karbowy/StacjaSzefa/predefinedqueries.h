@@ -5,7 +5,7 @@
 #include "timestamp.h"
 
 class Employee;
-class Task;
+class ClientTask;
 
 void initializeDatabase();
 void shutdownDatabase();
@@ -16,7 +16,7 @@ Command<std::string>& insertUuidC();
 Query<std::unique_ptr<Employee>, std::string>& findEmployeeByLoginQ();
 Command<std::string>& insertClientUuidC();
 Query<int, std::string>& findClientIdByUuidQ();
-Query<std::unique_ptr<Task>, std::string>& findTasksForLoginQ();
+Query<std::unique_ptr<ClientTask>, std::string>& findTasksForLoginQ();
 Query<boost::optional<Timestamp>, int>& findLastEntryTimeQ();
 Command<int, int, std::string, Timestamp, boost::optional<int> >& insertLogEntryC();
 

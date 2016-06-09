@@ -1,4 +1,5 @@
 #include "predefinedqueries.h"
+#include "task.h"
 #include <vector>
 
 static Database *db = nullptr;
@@ -160,6 +161,24 @@ insertTaskAssociationC()
     if (! query)
     {
         query = new Command<int, int, int>(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Query<std::unique_ptr<ClientTask>, int>&
+findActiveTasksForEmployeeQ()
+{
+    static const char* txt = "SELECT T.id, T.title, T.description, ET.time_spent\n"
+                             "FROM EmployeesTasks AS ET\n"
+                             "JOIN Employees AS E ON ET.employee = E.id\n"
+                             "JOIN Tasks AS T ON ET.task = T.id\n"
+                             "WHERE E.id = ? AND NOT ET.finished\n";
+    static Query<std::unique_ptr<ClientTask>, int>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<std::unique_ptr<ClientTask>, int>(*db, txt, std::make_unique<ClientTask, int&&, std::string&&, std::string&&, int&&>);
         queries.push_back(query);
     }
     return *query;

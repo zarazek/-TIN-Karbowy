@@ -16,4 +16,7 @@ Command<int>& deleteTaskAssociationsForUserC();
 Command<int, std::string, std::string>& insertTaskC();
 Command<int, int, int>& insertTaskAssociationC();
 
+class ClientTask;
+Query<std::unique_ptr<ClientTask>, int>& findActiveTasksForEmployeeQ();
+
 #endif

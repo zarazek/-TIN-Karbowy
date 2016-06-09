@@ -52,23 +52,14 @@ struct ClientConfig
     bool _useIpv6;
 };
 
-struct Task
-{
-    int _id;
-    std::string _title;
-    int _secondsSpent;
-    std::vector<std::string> _description;
-
-    Task() = default;
-    Task(int id, const std::string& title, const std::string& description, int secondsSpent);
-};
+class ClientTask;
 
 class AsyncClient
 {
 public:
     typedef std::function<void(const std::string&)> ErrorCallback;
     typedef std::function<void()> ConnectCallback;
-    typedef std::vector<std::unique_ptr<Task> > TasksList;
+    typedef std::vector<std::unique_ptr<ClientTask> > TasksList;
     typedef std::function<void(TasksList&&)> RetrieveTasksCallback;
     typedef std::deque<LogEntry> LogEntryList;
     typedef std::function<LogEntryList(const boost::optional<Timestamp>&)> RetrieveLogsCallback;
@@ -96,7 +87,7 @@ private:
     std::string _serverChallenge;
 
     RetrieveTasksCallback _onTasksRetrievedHook;
-    std::unique_ptr<Task> _currentTask;
+    std::unique_ptr<ClientTask> _currentTask;
     TasksList _tasks;
 
     RetrieveLogsCallback _retrieveLogs;

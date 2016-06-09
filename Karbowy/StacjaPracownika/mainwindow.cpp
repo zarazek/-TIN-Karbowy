@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include "logindialog.h"
 #include "communicationthread.h"
+#include "tasktablemodel.h"
 
 MainWindow::MainWindow(std::string&& myUuid, CommunicationThread& commThread, QWidget *parent) :
     QMainWindow(parent),
@@ -11,6 +12,10 @@ MainWindow::MainWindow(std::string&& myUuid, CommunicationThread& commThread, QW
 {
     ui->setupUi(this);
     connect(ui->connectAction, &QAction::triggered, this, &MainWindow::showLoginDialog);
+    TaskTableModel *model = new TaskTableModel(this);
+    connect(&_commThread, &CommunicationThread::loginSuccessfull, model, &TaskTableModel::setEmployeeId, Qt::QueuedConnection);
+    connect(&_commThread, &CommunicationThread::tasksChanged, model, &TaskTableModel::refresh, Qt::QueuedConnection);
+    ui->tableView->setModel(model);
 }
 
 MainWindow::~MainWindow()
@@ -26,5 +31,6 @@ void MainWindow::showLoginDialog()
     {
         _config = std::move(res);
         _commThread.setClientConfig(*_config);
+        _commThread.retrieveTasks();
     }
 }

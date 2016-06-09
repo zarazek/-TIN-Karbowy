@@ -21,7 +21,8 @@ SOURCES += \
     eventdispatcher.cpp \
     systemerror.cpp \
     parse.cpp \
-    protocolerror.cpp
+    protocolerror.cpp \
+    task.cpp
 
 HEADERS +=\
         karbowylib_global.h \
@@ -36,7 +37,8 @@ HEADERS +=\
     protocolerror.h \
     parse.h \
     timestamp.h \
-    logentry.h
+    logentry.h \
+    task.h
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3
