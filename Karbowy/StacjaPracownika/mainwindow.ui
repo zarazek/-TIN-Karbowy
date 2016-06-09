@@ -6,32 +6,27 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>587</width>
+    <height>502</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Stacja pracownika</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QTableView" name="tableView">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>741</width>
-      <height>611</height>
-     </rect>
-    </property>
-   </widget>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QTableView" name="tableView"/>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
-     <height>19</height>
+     <width>587</width>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="connectionMenu">
@@ -39,6 +34,8 @@
      <string>Połączenie</string>
     </property>
     <addaction name="connectAction"/>
+    <addaction name="retrieveTasksAction"/>
+    <addaction name="sendLogsAction"/>
     <addaction name="disconnectAction"/>
    </widget>
    <addaction name="connectionMenu"/>
@@ -52,6 +49,16 @@
   <action name="disconnectAction">
    <property name="text">
     <string>Rozłącz</string>
+   </property>
+  </action>
+  <action name="retrieveTasksAction">
+   <property name="text">
+    <string>Pobierz zadania</string>
+   </property>
+  </action>
+  <action name="sendLogsAction">
+   <property name="text">
+    <string>Wyślij wyniki</string>
    </property>
   </action>
  </widget>

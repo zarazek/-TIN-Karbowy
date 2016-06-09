@@ -15,14 +15,17 @@ public:
     void start();
     void stop();
 
-    void setClientConfig(ClientConfig config);
+    void login(const ClientConfig& config);
     void retrieveTasks();
     void sendLogs();
-    bool busy() const { return _client.busy(); }
+    void logout();
 
 signals:
-    void loginSuccessfull(int employeeId);
-    void tasksChanged();
+    void loggedIn(int employeeId);
+    void loggedOut();
+    void tasksRetrieved();
+    void logsSent();
+    void error(QString errorMsg);
 private:
     MainLoop _mainLoop;
     TaskQueue _queue;
@@ -32,10 +35,12 @@ private:
     int _userId;
 
     void run();
+    void loginOnCommThread(ClientConfig config);
     void onConnectSuccess();
     void retrieveTasksOnCommThread();
     void onTasksRetrieved(std::vector<std::unique_ptr<ClientTask> >&& tasks);
     void sendLogsOnCommThread();
+    void enqueueIfNotBusy(const std::function<void()>& task, const char* busyMsg);
 };
 
 #endif // COMMUNICATIONTHREAD_H

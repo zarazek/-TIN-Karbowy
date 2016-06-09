@@ -68,17 +68,19 @@ public:
     AsyncClient(MainLoop &mainLoop,
                 const ClientConfig& config,
                 const ErrorCallback& onError,
-                const ConnectCallback& onConnect);
+                const ConnectCallback& defaultOnConnect);
 
+    void connect(const ConnectCallback& onConnect);
     void retrieveTasks(const RetrieveTasksCallback& onTasksRetrieved);
     void sendLogs(const RetrieveLogsCallback &receiveLogs, const LogsSentCallback& onLogsSent);
+    void disconnect();
 
     bool busy() const { return _busy; }
 private:
     MainLoop& _mainLoop;
     const ClientConfig& _config;
     ErrorCallback _onErrorHook;
-    ConnectCallback _onConnectHook;
+    ConnectCallback _defaultOnConnectHook;
     std::unique_ptr<AsyncSocket> _conn;
     bool _connected;
     bool _busy;
@@ -94,7 +96,7 @@ private:
     LogsSentCallback _onLogsSentHook;
     LogEntryList _entrys;
 
-    void startConnection(const std::function<void()>& onConnect);
+    // void startConnection(const std::function<void()>& onConnect);
     void afterConnect();
     void afterSendServerChallenge();
     void afterReceiveServerChallengeResponse(const std::string& line);

@@ -297,54 +297,21 @@ using namespace std::placeholders;
 AsyncClient::AsyncClient(MainLoop& mainLoop,
                          const ClientConfig& config,
                          const ErrorCallback& onError,
-                         const ConnectCallback& onConnect) :
+                         const ConnectCallback& defaultOnConnect) :
     _mainLoop(mainLoop),
     _config(config),
     _onErrorHook(onError),
-    _onConnectHook(onConnect),
+    _defaultOnConnectHook(defaultOnConnect),
     _connected(false),
     _busy(false) { }
 
-void AsyncClient::retrieveTasks(const RetrieveTasksCallback& onTasksRetrieved)
-{
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
-    assert(! _busy);
-
-    _busy = true;
-    _onTasksRetrievedHook = onTasksRetrieved;
-    if (_connected)
-    {
-        issueRetrieveTasksRequest();
-    }
-    else
-    {
-        startConnection(std::bind(&AsyncClient::issueRetrieveTasksRequest, this));
-    }
-}
-
-void AsyncClient::sendLogs(const RetrieveLogsCallback& retrieveLogs, const LogsSentCallback& onLogsSent)
-{
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
-    assert(! _busy);
-
-    _busy = true;
-    _retrieveLogs = retrieveLogs;
-    _onLogsSentHook = onLogsSent;
-    if (_connected)
-    {
-        issueSendLogsRequest();
-    }
-    else
-    {
-        startConnection(std::bind(&AsyncClient::issueSendLogsRequest, this));
-    }
-}
-
-void AsyncClient::startConnection(const std::function<void()>& onConnect)
+void AsyncClient::connect(const ConnectCallback& onConnect)
 {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
     assert(! _connected);
+    assert(! _busy);
 
+    _busy = true;
     _onConnect = onConnect;
     _conn = std::make_unique<AsyncSocket>(std::bind(&AsyncClient::handleError, this, _1));
     AsyncSocket::ConnectHandler afterConnect = std::bind(&AsyncClient::afterConnect, this);
@@ -371,6 +338,57 @@ void AsyncClient::startConnection(const std::function<void()>& onConnect)
     {
         _mainLoop.addObject(*_conn);
     }
+}
+
+void AsyncClient::retrieveTasks(const RetrieveTasksCallback& onTasksRetrieved)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _onTasksRetrievedHook = onTasksRetrieved;
+    if (_connected)
+    {
+        issueRetrieveTasksRequest();
+    }
+    else
+    {
+        connect([this]()
+        {
+            if (_defaultOnConnectHook)
+            {
+                _defaultOnConnectHook();
+            }
+            issueRetrieveTasksRequest();
+        });
+    }
+}
+
+void AsyncClient::sendLogs(const RetrieveLogsCallback& retrieveLogs, const LogsSentCallback& onLogsSent)
+{
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    _retrieveLogs = retrieveLogs;
+    _onLogsSentHook = onLogsSent;
+    if (_connected)
+    {
+        issueSendLogsRequest();
+    }
+    else
+    {
+        connect([this]()
+        {
+            if (_defaultOnConnectHook)
+            {
+                _defaultOnConnectHook();
+            }
+            issueSendLogsRequest();
+        });
+    }
+}
+
+void AsyncClient::disconnect()
+{
+    // TODO
+    assert(false);
 }
 
 void AsyncClient::afterConnect()
@@ -527,11 +545,11 @@ void AsyncClient::afterReceiveLoginChallengeAck(const std::string& line)
     if (loginOk)
     {
         _connected = true;
-        if (_onConnectHook)
+        _busy = false;
+        if (_onConnect)
         {
-            _onConnectHook();
+            _onConnect();
         }
-        _onConnect();
     }
     else
     {
@@ -543,6 +561,10 @@ void AsyncClient::issueRetrieveTasksRequest()
 {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
 
+    assert(_connected);
+    assert(! _busy);
+
+    _busy = true;
     _conn->asyncWrite("RETRIEVE TASKS\n", std::bind(&AsyncClient::startReceivingTasks, this));
 }
 
@@ -605,6 +627,10 @@ void AsyncClient::issueSendLogsRequest()
 {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
 
+    assert(_connected);
+    assert(! _busy);
+
+    _busy = true;
     _conn->asyncWrite("LOG UPLOAD\n", std::bind(&AsyncClient::readLastTimestamp, this));
 }
 

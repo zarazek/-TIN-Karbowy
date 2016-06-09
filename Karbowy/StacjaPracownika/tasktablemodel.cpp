@@ -17,6 +17,31 @@ int TaskTableModel::columnCount(const QModelIndex&) const
     return COLUMN_COUNT;
 }
 
+QVariant TaskTableModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    switch (role)
+    {
+    case Qt::DisplayRole:
+        switch (orientation)
+        {
+        case Qt::Horizontal:
+            switch (section)
+            {
+            case ColumnIndex_ID:
+                return QVariant("ID");
+            case ColumnIndex_TITLE:
+                return QVariant("Tytuł");
+            case ColumnIndex_DESCRIPTION:
+                return QVariant("Opis");
+            case ColumnIndex_TIME_SPENT:
+                return QVariant("Spędzony czas");
+            }
+        }
+    }
+
+    return QAbstractTableModel::headerData(section, orientation, role);
+}
+
 static QString formatTime(int timeInSeconds)
 {
     std::chrono::seconds t(timeInSeconds);
@@ -25,20 +50,7 @@ static QString formatTime(int timeInSeconds)
     int minutes = std::chrono::duration_cast<std::chrono::minutes>(t).count();
     t -= std::chrono::minutes(minutes);
     int seconds = t.count();
-    QString res;
-    if (hours > 0)
-    {
-        res = QString("%02d:02d:02d").arg(hours).arg(minutes).arg(seconds);
-    }
-    else if (minutes > 0)
-    {
-        res = QString("%02d:02d").arg(minutes).arg(seconds);
-    }
-    else
-    {
-        res = QString("%02d").arg(seconds);
-    }
-    return res;
+    return QString::asprintf("%02d:%02d:%02d", hours, minutes, seconds);
 }
 
 static QString join(const std::vector<std::string>& lst)

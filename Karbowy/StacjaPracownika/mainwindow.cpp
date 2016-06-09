@@ -12,9 +12,16 @@ MainWindow::MainWindow(std::string&& myUuid, CommunicationThread& commThread, QW
 {
     ui->setupUi(this);
     connect(ui->connectAction, &QAction::triggered, this, &MainWindow::showLoginDialog);
+    connect(ui->retrieveTasksAction, &QAction::triggered, &_commThread, &CommunicationThread::retrieveTasks);
+    connect(ui->sendLogsAction, &QAction::triggered, &_commThread, &CommunicationThread::sendLogs);
+    connect(ui->disconnectAction, &QAction::triggered, &_commThread, &CommunicationThread::logout);
+
+    QHeaderView *header = ui->tableView->horizontalHeader();
+    header->setSectionResizeMode(QHeaderView::ResizeToContents);
+    header->setSortIndicatorShown(true);
     TaskTableModel *model = new TaskTableModel(this);
-    connect(&_commThread, &CommunicationThread::loginSuccessfull, model, &TaskTableModel::setEmployeeId, Qt::QueuedConnection);
-    connect(&_commThread, &CommunicationThread::tasksChanged, model, &TaskTableModel::refresh, Qt::QueuedConnection);
+    connect(&_commThread, &CommunicationThread::loggedIn, model, &TaskTableModel::setEmployeeId, Qt::QueuedConnection);
+    connect(&_commThread, &CommunicationThread::tasksRetrieved, model, &TaskTableModel::refresh, Qt::QueuedConnection);
     ui->tableView->setModel(model);
 }
 
@@ -30,7 +37,7 @@ void MainWindow::showLoginDialog()
     if (res)
     {
         _config = std::move(res);
-        _commThread.setClientConfig(*_config);
-        _commThread.retrieveTasks();
+        _commThread.login(*_config);
     }
 }
+

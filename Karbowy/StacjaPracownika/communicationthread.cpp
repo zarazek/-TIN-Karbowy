@@ -36,19 +36,27 @@ void CommunicationThread::stop()
     _thread.join();
 }
 
-void CommunicationThread::setClientConfig(ClientConfig config)
+void CommunicationThread::login(const ClientConfig& config)
 {
-    _queue.addTask([this, config] { _config = config; });
+    enqueueIfNotBusy(std::bind(&CommunicationThread::loginOnCommThread, this, config),
+                     "Can't log in");
 }
 
 void CommunicationThread::retrieveTasks()
 {
-    _queue.addTask(std::bind(&CommunicationThread::retrieveTasksOnCommThread, this));
+    enqueueIfNotBusy(std::bind(&CommunicationThread::retrieveTasksOnCommThread, this),
+                     "Can't retrieve tasks");
 }
 
 void CommunicationThread::sendLogs()
 {
-    _queue.addTask(std::bind(&CommunicationThread::sendLogsOnCommThread, this));
+    enqueueIfNotBusy(std::bind(&CommunicationThread::sendLogsOnCommThread, this),
+                     "Can't send logs");
+}
+
+void CommunicationThread::logout()
+{
+    _queue.addTask([this] { _client.disconnect(); });
 }
 
 void CommunicationThread::run()
@@ -60,6 +68,12 @@ void CommunicationThread::run()
     {
         std::cerr << "Exception: " << ex.what() << std::endl;
     }
+}
+
+void CommunicationThread::loginOnCommThread(ClientConfig config)
+{
+    _config = config;
+    _client.connect(std::bind(&CommunicationThread::onConnectSuccess, this));
 }
 
 void CommunicationThread::onConnectSuccess()
@@ -74,7 +88,7 @@ void CommunicationThread::onConnectSuccess()
         bool res = findUserId.next(_userId);
         assert(res);
     }
-    emit loginSuccessfull(_userId);
+    emit loggedIn(_userId);
 }
 
 void CommunicationThread::retrieveTasksOnCommThread()
@@ -104,7 +118,7 @@ void CommunicationThread::onTasksRetrieved(std::vector<std::unique_ptr<ClientTas
         insertTask.execute(task->_id, task->_title, boost::join(task->_description, "\n"));
         insertAssociation.execute(_userId, task->_id, task->_secondsSpent);
     }
-    emit tasksChanged();
+    emit tasksRetrieved();
 }
 
 static AsyncClient::LogEntryList retrieveLogs(const boost::optional<Timestamp>&)
@@ -144,4 +158,16 @@ static void onLogsSent()
 void CommunicationThread::sendLogsOnCommThread()
 {
     _client.sendLogs(retrieveLogs, onLogsSent);
+}
+
+void CommunicationThread::enqueueIfNotBusy(const std::function<void ()> &task, const char *busyMsg)
+{
+    if (_client.busy())
+    {
+        emit error(QString("%1: communication thread busy").arg(busyMsg));
+    }
+    else
+    {
+        _queue.addTask(task);
+    }
 }

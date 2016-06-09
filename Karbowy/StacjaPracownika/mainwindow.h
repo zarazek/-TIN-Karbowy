@@ -26,6 +26,8 @@ private:
     std::unique_ptr<ClientConfig> _config;
 
     void showLoginDialog();
+    void retrieveTasks();
+    void sendLogs();
 };
 
 #endif // MAINWINDOW_H
