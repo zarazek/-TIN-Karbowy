@@ -265,18 +265,29 @@ void AsyncSocket::onReadyToRead()
     do {
         char chunk[chunkSize];
         bytesRead = read(_fd, chunk, chunkSize);
-        if (bytesRead >= 0)
+        if (bytesRead > 0)
         {
             _inputBuffer.addData(chunk, bytesRead);
         }
-        else if (errno != EAGAIN && errno != EWOULDBLOCK)
+        else if (bytesRead == 0)
         {
-            handleError("read error", errno);
-            return;
+            _inputBuffer.setEof();
+        }
+        else
+        {
+            if (errno != EAGAIN && errno != EWOULDBLOCK)
+            {
+                handleError("read error", errno);
+                return;
+            }
         }
     }
-    while (bytesRead >= 0);
-    if (_inputBuffer.hasFullLine())
+    while (bytesRead > 0);
+    if (_inputBuffer.isEof())
+    {
+        handleEof();
+    }
+    else if (_inputBuffer.hasFullLine())
     {
         _readHandler(_inputBuffer.getFirstLine());
     }

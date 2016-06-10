@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "timestamp.h"
+#include "logentry.h"
 
 namespace Ui {
 class TaskView;
@@ -28,7 +29,8 @@ private:
     bool _running;
     int _employeeId;
     int _taskId;
-    int _secondsSpent;
+    Duration _duration;
+    Timestamp _lastCheckpoint;
 
     void startCounting();
     void stopCounting();
@@ -36,7 +38,10 @@ private:
     void switchOff();
     void tick();
 
-    void updateTime(Timestamp upTo);
+    void updateDuration(Timestamp newCheckpoint);
+    void addLogEntry(LogEntryType type, Timestamp timestamp);
+    void startTimer();
+    void stopTimer();
 
 };
 

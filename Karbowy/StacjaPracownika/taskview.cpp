@@ -1,7 +1,6 @@
 #include "taskview.h"
 #include "ui_taskview.h"
 #include "task.h"
-#include "logentry.h"
 #include "utils.h"
 #include "predefinedqueries.h"
 #include <QTimer>
@@ -33,53 +32,41 @@ void TaskView::setData(int employeeId, const ClientTask& task)
 
     _employeeId = employeeId;
     _taskId = task._id;
-    _secondsSpent = task._secondsSpent;
+    _duration = std::chrono::seconds(task._secondsSpent);
     _ui->titleLabel->setText(task._title.c_str());
-    // ui->descriptionEdit->TODO
-    _ui->timeSpentLabel->setText(formatTime(_secondsSpent));
+    _ui->descriptionEdit->document()->setPlainText(join(task._description));
+    _ui->timeSpentLabel->setText(formatTime(_duration));
 }
 
 void TaskView::startCounting()
 {
-    assert(! _running);
-
-    Timestamp startTime = Clock::now();
-    _timer->start(1000);
-    auto& cmd = insertLogEntryC();
-    cmd.execute(LogEntryType_TASK_START, _employeeId, startTime, boost::optional<int>(_taskId));
-    _ui->startButton->setDisabled(true);
-    _ui->pauseButton->setDisabled(false);
-    _running = true;
+    _lastCheckpoint = Clock::now();
+    addLogEntry(LogEntryType_TASK_START, _lastCheckpoint);
+    startTimer();
 }
 
 void TaskView::stopCounting()
 {
-    assert(_running);
-
-    _timer->stop();
     Timestamp stopTime = Clock::now();
-    auto& cmd = insertLogEntryC();
-    cmd.execute(LogEntryType_TASK_PAUSE, _employeeId, stopTime, boost::optional<int>(_taskId));
-    _ui->startButton->setDisabled(false);
-    _ui->pauseButton->setDisabled(true);
-    _running = false;
+    addLogEntry(LogEntryType_TASK_PAUSE, stopTime);
+    updateDuration(stopTime);
+    stopTimer();
 }
 
 void TaskView::finishTask()
 {
     Timestamp stopTime = Clock::now();
-    auto& cmd = insertLogEntryC();
     if (_running)
     {
-        _timer->stop();
-        cmd.execute(LogEntryType_TASK_FINISH, _employeeId, stopTime, boost::optional<int>(_taskId));
+        stopTimer();
+        addLogEntry(LogEntryType_TASK_FINISH, stopTime);
+        updateDuration(stopTime);
     }
     else
     {
-        cmd.execute(LogEntryType_TASK_START, _employeeId, stopTime, boost::optional<int>(_taskId));
-        cmd.execute(LogEntryType_TASK_FINISH, _employeeId, stopTime, boost::optional<int>(_taskId));
+        addLogEntry(LogEntryType_TASK_START, stopTime);
+        addLogEntry(LogEntryType_TASK_FINISH, stopTime);
     }
-    _running = false;
     emit switchingOff();
 }
 
@@ -94,6 +81,39 @@ void TaskView::switchOff()
 
 void TaskView::tick()
 {
-    ++_secondsSpent;
-    _ui->timeSpentLabel->setText(formatTime(_secondsSpent));
+    updateDuration(Clock::now());
+}
+
+void TaskView::updateDuration(Timestamp newCheckpoint)
+{
+    _duration += newCheckpoint - _lastCheckpoint;
+    auto& updateTimeSpentCmd = updateTimeSpentOnTaskC();
+    updateTimeSpentCmd.execute(_duration, _employeeId, _taskId);
+    _ui->timeSpentLabel->setText(formatTime(_duration));
+    _lastCheckpoint = newCheckpoint;
+}
+
+void TaskView::addLogEntry(LogEntryType type, Timestamp timestamp)
+{
+    auto& addLogEntryCmd = insertLogEntryC();
+    addLogEntryCmd.execute(type, _employeeId, timestamp, boost::optional<int>(_taskId));
+}
+
+void TaskView::startTimer()
+{
+    assert(! _running);
+
+    _timer->start(1000);
+    _ui->startButton->setEnabled(false);
+    _ui->pauseButton->setEnabled(true);
+    _running = true;
+}
+
+void TaskView::stopTimer()
+{
+    assert(_running);
+    _timer->stop();
+    _ui->startButton->setDisabled(false);
+    _ui->pauseButton->setDisabled(true);
+    _running = false;
 }

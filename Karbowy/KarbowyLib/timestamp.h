@@ -4,6 +4,7 @@
 #include <chrono>
 
 typedef std::chrono::system_clock Clock;
-typedef std::chrono::time_point<Clock> Timestamp;
+typedef Clock::time_point Timestamp;
+typedef Clock::duration Duration;
 
 #endif

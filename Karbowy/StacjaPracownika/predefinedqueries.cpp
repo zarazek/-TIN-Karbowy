@@ -184,16 +184,32 @@ findActiveTasksForEmployeeQ()
     return *query;
 }
 
-Command<int, int, Timestamp, boost::optional<int> >&
+Command<LogEntryType, int, Timestamp, boost::optional<int> >&
 insertLogEntryC()
 {
     static const char *txt = "INSERT INTO Logs(type, employee, timestamp, task)\n"
                              "VALUES (?, ?, ?, ?)\n";
-    static Command<int, int, Timestamp, boost::optional<int> >* query = nullptr;
+    static Command<LogEntryType, int, Timestamp, boost::optional<int> >* query = nullptr;
 
     if (! query)
     {
-        query = new Command<int, int, Timestamp, boost::optional<int> >(*db, txt);
+        query = new Command<LogEntryType, int, Timestamp, boost::optional<int> >(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Command<Duration, int, int>&
+updateTimeSpentOnTaskC()
+{
+    static char *txt = "UPDATE EmployeesTasks\n"
+                       "SET time_spent = ?\n"
+                       "WHERE employee = ? AND task = ?\n";
+    static Command<Duration, int , int>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Command<Duration, int, int>(*db, txt);
         queries.push_back(query);
     }
     return *query;

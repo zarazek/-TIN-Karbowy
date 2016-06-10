@@ -75,7 +75,8 @@ private:
     typedef boost::variant<bool, boost::optional<bool>,
                            int, boost::optional<int>,
                            string, boost::optional<string>,
-                           Timestamp, boost::optional<Timestamp> > ParamValue;
+                           Timestamp, boost::optional<Timestamp>,
+                           Duration, boost::optional<Duration> > ParamValue;
     int _paramIdx;
     ParamValue _paramValue;
 
@@ -96,6 +97,7 @@ class Database
 public:
 
     Database(const string &fileName);
+    Database(const Database&) = delete;
     ~Database();
 private:
     sqlite3* _db;
@@ -213,6 +215,32 @@ private:
         bind(paramIdx + 1, restOfArgs...);
     }
 
+    template <typename... RestOfArgs>
+    void bind(int paramIdx, const Duration& param, RestOfArgs&&... restOfArgs)
+    {
+        int numOfSeconds = std::chrono::duration_cast<std::chrono::seconds>(param).count();
+        int errorCode = sqlite3_bind_int(_stmt, paramIdx, numOfSeconds);
+        checkBindError(errorCode, paramIdx, param);
+        bind(paramIdx + 1, restOfArgs...);
+    }
+
+    template <typename... RestOfArgs>
+    void bind(int paramIdx, const boost::optional<Duration>& param, RestOfArgs&&... restOfArgs)
+    {
+        int errorCode;
+        if (param)
+        {
+            int numOfSeconds = std::chrono::duration_cast<std::chrono::seconds>(*param).count();
+            errorCode = sqlite3_bind_int(_stmt, paramIdx, numOfSeconds);
+        }
+        else
+        {
+            errorCode = sqlite3_bind_null(_stmt, paramIdx);
+        }
+        checkBindError(errorCode, paramIdx, param);
+        bind(paramIdx + 1, restOfArgs...);
+    }
+
     template <typename T>
     void checkBindError(int errorCode, int paramIdx, T param)
     {
@@ -234,6 +262,8 @@ public:
 
     Command(Database& db, string&& queryStr) :
         QueryBase(db, std::forward<string>(queryStr)) { }
+
+    Command(const Command&) = delete;
 
     void execute(Args... args)
     {
@@ -476,6 +506,8 @@ public:
     Query(Database& db, string&& queryStr) :
         QueryBase(db, std::forward<string>(queryStr)),
         _retriever(new RowRetriever<Result(Result&&)>(returnArg)) { }
+
+    Query(const Query&) = delete;
 
     template <class Functor>
     Query(Database& db, const string& queryStr, Functor&& fn) :

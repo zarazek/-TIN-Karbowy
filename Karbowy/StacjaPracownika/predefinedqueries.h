@@ -2,6 +2,7 @@
 #define PREDEFINEDQUERIES_H
 
 #include <database.h>
+#include "logentry.h"
 
 void initializeDatabase();
 void shutdownDatabase();
@@ -19,6 +20,7 @@ Command<int, int, int>& insertTaskAssociationC();
 class ClientTask;
 Query<std::unique_ptr<ClientTask>, int>& findActiveTasksForEmployeeQ();
 
-Command<int, int, Timestamp, boost::optional<int> >& insertLogEntryC();
+Command<LogEntryType, int, Timestamp, boost::optional<int> >& insertLogEntryC();
+Command<Duration, int, int>& updateTimeSpentOnTaskC();
 
 #endif

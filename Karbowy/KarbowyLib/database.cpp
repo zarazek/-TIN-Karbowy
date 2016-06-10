@@ -70,6 +70,11 @@ public:
         _stream << '\'' << formatTimestamp(value) << '\'';
     }
 
+    void operator()(const Duration& value) const
+    {
+        _stream << std::chrono::duration_cast<std::chrono::seconds>(value).count();
+    }
+
     template <class T>
     void operator()(const boost::optional<T>& value) const
     {
