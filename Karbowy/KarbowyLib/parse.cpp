@@ -137,6 +137,24 @@ bool TimestampToken::parse(std::string::const_iterator &begin, const std::string
     return true;
 }
 
+SecondsToken::SecondsToken(Duration& target) :
+    _target(target) { }
+
+bool SecondsToken::parse(std::string::const_iterator &begin, const std::string::const_iterator &end) const
+{
+    int count;
+    IntToken token(count);
+    if (token.parse(begin, end))
+    {
+        _target = std::chrono::seconds(count);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 std::string quoteString(const std::string& str)
 {
     std::string res("\"");

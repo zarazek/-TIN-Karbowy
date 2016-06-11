@@ -2,14 +2,15 @@
 #define TASKVIEW_H
 
 #include <QWidget>
-#include "timestamp.h"
 #include "logentry.h"
 
 namespace Ui {
 class TaskView;
 }
 
-class ClientTask;
+// class QTimer;
+// class QModelIndex;
+class TaskTableModel;
 
 class TaskView : public QWidget
 {
@@ -18,7 +19,7 @@ class TaskView : public QWidget
 public:
     explicit TaskView(QWidget *parent = 0);
     ~TaskView();
-    void setData(int employeeId, const ClientTask& task);
+    void setData(TaskTableModel& model, size_t rowIdx);
 
 signals:
     void switchingOff();
@@ -26,23 +27,21 @@ signals:
 private:
     Ui::TaskView *_ui;
     QTimer *_timer;
-    bool _running;
-    int _employeeId;
-    int _taskId;
-    Duration _duration;
-    Timestamp _lastCheckpoint;
+    TaskTableModel* _model;
+    size_t _rowIdx;
 
-    void startCounting();
-    void stopCounting();
+    void setModel(TaskTableModel& model);
+    void startTimer();
+    void tick();
+    void stopTimer();
     void finishTask();
     void switchOff();
-    void tick();
+    void setTitle(const QString& title);
+    void setDescription(const QString& description);
+    void setTimeSpent(const QString& timeSpent);
+    void setActive(bool active);
 
-    void updateDuration(Timestamp newCheckpoint);
-    void addLogEntry(LogEntryType type, Timestamp timestamp);
-    void startTimer();
-    void stopTimer();
-
+    void modelDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
 };
 
 #endif // TASKVIEW_H

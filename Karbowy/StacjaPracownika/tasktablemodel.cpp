@@ -1,15 +1,40 @@
 #include "tasktablemodel.h"
 #include "predefinedqueries.h"
-#include "utils.h"
+#include "stringandtimeutils.h"
 #include <QMessageBox>
 
 TaskTableModel::TaskTableModel(QObject *parent) :
     QAbstractTableModel(parent),
     _employeeId(INVALID_EMPLOYEE_ID) { }
 
+int TaskTableModel::id(size_t rowIdx) const
+{
+    return _tasks.at(rowIdx)->_id;
+}
+
+QString TaskTableModel::title(size_t rowIdx) const
+{
+    return QString(_tasks.at(rowIdx)->_title.c_str());
+}
+
+QString TaskTableModel::description(size_t rowIdx) const
+{
+    return join(_tasks.at(rowIdx)->_description);
+}
+
+QString TaskTableModel::timeSpent(size_t rowIdx) const
+{
+    return formatTime(_tasks.at(rowIdx)->_timeSpent);
+}
+
+bool TaskTableModel::active(size_t rowIdx) const
+{
+    return _tasks.at(rowIdx)->_workingNow;
+}
+
 int TaskTableModel::rowCount(const QModelIndex&) const
 {
-    return rowCount();
+    return _tasks.size();
 }
 
 int TaskTableModel::columnCount(const QModelIndex&) const
@@ -42,27 +67,24 @@ QVariant TaskTableModel::headerData(int section, Qt::Orientation orientation, in
     return QAbstractTableModel::headerData(section, orientation, role);
 }
 
-
-
-
 QVariant TaskTableModel::data(const QModelIndex& index, int role) const
 {
-    if (index.row() < _tasks.size())
+    size_t rowIdx = index.row();
+    if (rowIdx < _tasks.size())
     {
-        const auto& task = *_tasks[index.row()];
         switch (role)
         {
         case Qt::DisplayRole:
             switch (index.column())
             {
             case ColumnIndex_ID:
-                return QVariant(task._id);
+                return QVariant(id(rowIdx));
             case ColumnIndex_TITLE:
-                return QVariant(QString(task._title.c_str()));
+                return QVariant(title(rowIdx));
             case ColumnIndex_DESCRIPTION:
-                return QVariant(join(task._description));
+                return QVariant(description(rowIdx));
             case ColumnIndex_TIME_SPENT:
-                return QVariant(formatTime(task._secondsSpent));
+                return QVariant(timeSpent(rowIdx));
             }
         }
     }
@@ -81,28 +103,89 @@ void TaskTableModel::setEmployeeId(int employeeId)
 
 void TaskTableModel::refresh()
 {
-    try
+    if (_employeeId != INVALID_EMPLOYEE_ID)
     {
-        if (_employeeId != INVALID_EMPLOYEE_ID)
+        Query<std::unique_ptr<ClientTask>, int>& query = findActiveTasksForEmployeeQ();
+        query.execute(_employeeId);
+        std::vector<std::unique_ptr<ClientTask> > newTasks;
+        std::unique_ptr<ClientTask> task;
+        while (query.next(task))
         {
-            Query<std::unique_ptr<ClientTask>, int>& query = findActiveTasksForEmployeeQ();
-            query.execute(_employeeId);
-            std::vector<std::unique_ptr<ClientTask> > newTasks;
-            std::unique_ptr<ClientTask> task;
-            while (query.next(task))
-            {
-                newTasks.emplace_back(std::move(task));
-            }
-            beginResetModel();
-            _tasks = std::move(newTasks);
-            endResetModel();
+            newTasks.emplace_back(std::move(task));
         }
+        beginResetModel();
+        _tasks = std::move(newTasks);
+        endResetModel();
     }
-    catch (std::exception& ex)
+}
+
+void TaskTableModel::startWork(size_t idx)
+{
+    Timestamp newCheckpoint = Clock::now();
+    ClientTask& task = *_tasks.at(idx);
+    assert(! task._workingNow);
+    task._lastCheckpoint = newCheckpoint;
+    addLogEntry(LogEntryType_TASK_START, task);
+    task._workingNow = true;
+    emit taskActivated(idx);
+}
+
+void TaskTableModel::workCheckpoint(size_t rowIdx)
+{
+    Timestamp newCheckpoint = Clock::now();
+    ClientTask& task = *_tasks.at(rowIdx);
+    updateDuration(task, newCheckpoint);
+    QModelIndex idx = index(rowIdx, ColumnIndex_TIME_SPENT);
+    emit dataChanged(idx, idx);
+}
+
+void TaskTableModel::pauseWork(size_t rowIdx)
+{
+    Timestamp newCheckpoint = Clock::now();
+    ClientTask& task = *_tasks.at(rowIdx);
+    updateDuration(task, newCheckpoint);
+    addLogEntry(LogEntryType_TASK_PAUSE, task);
+    task._workingNow = false;
+    QModelIndex idx = index(rowIdx, ColumnIndex_TIME_SPENT);
+    emit dataChanged(idx, idx);
+    emit taskDeactivated(rowIdx);
+}
+
+void TaskTableModel::finishWork(size_t idx)
+{
+    Timestamp newCheckpoint = Clock::now();
+    ClientTask& task = *_tasks.at(idx);
+    if (task._workingNow)
     {
-        QMessageBox::critical(0, "Wyjątek",
-                              QString(ex.what()) + "\n\n" +
-                              "Kliknij OK aby wyjść.",
-                              QMessageBox::Ok);
+        updateDuration(task, newCheckpoint, true);
+        addLogEntry(LogEntryType_TASK_FINISH, task);
+        task._workingNow = false;
+        QModelIndex idxx = index(idx, ColumnIndex_TIME_SPENT);
+        emit dataChanged(idxx, idxx);
+        emit taskDeactivated(idx);
     }
+    else
+    {
+        task._lastCheckpoint = newCheckpoint;
+        addLogEntry(LogEntryType_TASK_START, task);
+        addLogEntry(LogEntryType_TASK_FINISH, task);
+    }
+    beginRemoveRows(QModelIndex(), static_cast<int>(idx), static_cast<int>(idx));
+    _tasks.erase(_tasks.begin() + idx);
+    endRemoveRows();
+}
+
+void TaskTableModel::updateDuration(ClientTask& task, const Timestamp& newCheckpoint, bool finished)
+{
+    assert(task._workingNow);
+    task._timeSpent += newCheckpoint - task._lastCheckpoint;
+    auto& updateTimeSpentCmd = updateTimeSpentOnTaskC();
+    updateTimeSpentCmd.execute(task._timeSpent, finished, _employeeId, task._id);
+    task._lastCheckpoint = newCheckpoint;
+}
+
+void TaskTableModel::addLogEntry(LogEntryType type, const ClientTask& task)
+{
+    auto& addLogEntryCmd = insertLogEntryC();
+    addLogEntryCmd.execute(type, _employeeId, task._lastCheckpoint, boost::optional<int>(task._id));
 }

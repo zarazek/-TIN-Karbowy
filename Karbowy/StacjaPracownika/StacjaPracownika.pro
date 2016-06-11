@@ -20,7 +20,7 @@ SOURCES += main.cpp\
     logindialog.cpp \
     tasktablemodel.cpp \
     taskview.cpp \
-    utils.cpp
+    stringandtimeutils.cpp
 
 HEADERS  += mainwindow.h \
     communicationthread.h \
@@ -28,7 +28,7 @@ HEADERS  += mainwindow.h \
     logindialog.h \
     tasktablemodel.h \
     taskview.h \
-    utils.h
+    stringandtimeutils.h
 
 FORMS    += \
     mainwindow.ui \

@@ -100,7 +100,7 @@ void CommunicationThread::onTasksRetrieved(std::vector<std::unique_ptr<ClientTas
 {
     for (const auto& task : tasks)
     {
-        std::cout << "TASK " << task->_id << " TITLE " << quoteString(task->_title) << " SPENT " << task->_secondsSpent << std::endl;
+        std::cout << "TASK " << task->_id << " TITLE " << quoteString(task->_title) << " SPENT " << toSeconds(task->_timeSpent) << std::endl;
         for (const auto& line : task->_description)
         {
             std::cout << line << std::endl;
@@ -116,7 +116,7 @@ void CommunicationThread::onTasksRetrieved(std::vector<std::unique_ptr<ClientTas
     for (const auto& task : tasks)
     {
         insertTask.execute(task->_id, task->_title, boost::join(task->_description, "\n"));
-        insertAssociation.execute(_userId, task->_id, task->_secondsSpent);
+        insertAssociation.execute(_userId, task->_id, task->_timeSpent);
     }
     emit tasksRetrieved();
 }

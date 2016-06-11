@@ -43,9 +43,18 @@ class TimestampToken : public Token
 {
 public:
     TimestampToken(Timestamp& target);
-    bool parse(std::string::const_iterator &begin, const std::string::const_iterator &end) const override;
+    bool parse(std::string::const_iterator& begin, const std::string::const_iterator& end) const override;
 private:
     Timestamp& _target;
+};
+
+class SecondsToken : public Token
+{
+public:
+    SecondsToken(Duration& target);
+    bool parse(std::string::const_iterator& begin, const std::string::const_iterator& end) const override;
+private:
+    Duration& _target;
 };
 
 namespace impl

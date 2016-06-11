@@ -22,7 +22,8 @@ SOURCES += \
     systemerror.cpp \
     parse.cpp \
     protocolerror.cpp \
-    task.cpp
+    task.cpp \
+    timestamp.cpp
 
 HEADERS +=\
         karbowylib_global.h \

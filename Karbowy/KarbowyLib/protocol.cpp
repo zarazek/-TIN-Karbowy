@@ -597,7 +597,7 @@ void AsyncClient::receiveTaskHeader(const std::string& line)
         if (parse(line,
                   "TASK ", IntToken(_currentTask->_id),
                   " TITLE ", QuotedStringToken(_currentTask->_title),
-                  " SPENT ", IntToken(_currentTask->_secondsSpent)))
+                  " SPENT ", SecondsToken(_currentTask->_timeSpent)))
         {
             _conn->asyncReadLine(std::bind(&AsyncClient::receiveTaskDescription, this, _1));
         }

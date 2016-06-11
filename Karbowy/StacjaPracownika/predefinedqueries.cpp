@@ -151,16 +151,16 @@ insertTaskC()
     return *query;
 }
 
-Command<int, int, int>&
+Command<int, int, Duration>&
 insertTaskAssociationC()
 {
     static const char* txt = "INSERT INTO EmployeesTasks(employee, task, time_spent)\n"
                              "VALUES (?, ?, ?)\n";
-    static Command<int, int, int>* query = nullptr;
+    static Command<int, int, Duration>* query = nullptr;
 
     if (! query)
     {
-        query = new Command<int, int, int>(*db, txt);
+        query = new Command<int, int, Duration>(*db, txt);
         queries.push_back(query);
     }
     return *query;
@@ -178,7 +178,7 @@ findActiveTasksForEmployeeQ()
 
     if (! query)
     {
-        query = new Query<std::unique_ptr<ClientTask>, int>(*db, txt, std::make_unique<ClientTask, int&&, std::string&&, std::string&&, int&&>);
+        query = new Query<std::unique_ptr<ClientTask>, int>(*db, txt, std::make_unique<ClientTask, int&&, std::string&&, std::string&&, Duration&&>);
         queries.push_back(query);
     }
     return *query;
@@ -199,17 +199,17 @@ insertLogEntryC()
     return *query;
 }
 
-Command<Duration, int, int>&
+Command<Duration, bool, int, int>&
 updateTimeSpentOnTaskC()
 {
-    static char *txt = "UPDATE EmployeesTasks\n"
-                       "SET time_spent = ?\n"
-                       "WHERE employee = ? AND task = ?\n";
-    static Command<Duration, int , int>* query = nullptr;
+    static const char *txt = "UPDATE EmployeesTasks\n"
+                             "SET time_spent = ?, finished = ?\n"
+                             "WHERE employee = ? AND task = ?\n";
+    static Command<Duration, bool, int , int>* query = nullptr;
 
     if (! query)
     {
-        query = new Command<Duration, int, int>(*db, txt);
+        query = new Command<Duration, bool, int, int>(*db, txt);
         queries.push_back(query);
     }
     return *query;

@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "stringandtimeutils.h"
 #include <chrono>
 
 QString formatTime(Duration duration)
@@ -11,10 +11,10 @@ QString formatTime(Duration duration)
     return QString::asprintf("%02d:%02d:%02d", hours, minutes, seconds);
 }
 
-QString formatTime(int durationInSeconds)
-{
-    return formatTime(std::chrono::seconds(durationInSeconds));
-}
+//QString formatTime(int durationInSeconds)
+//{
+//    return formatTime(std::chrono::seconds(durationInSeconds));
+//}
 
 QString join(const std::vector<std::string>& lst)
 {

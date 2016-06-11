@@ -116,7 +116,7 @@ void ClientConnection::handleCommand(const std::string& line)
         std::unique_ptr<ClientTask> task;
         while (query.next(task))
         {
-            _stream.writeLine(concatln("TASK ", task->_id, " TITLE ", quoteString(task->_title), " SPENT ", task->_secondsSpent));
+            _stream.writeLine(concatln("TASK ", task->_id, " TITLE ", quoteString(task->_title), " SPENT ", toSeconds(task->_timeSpent)));
             for (const auto& line : task->_description)
             {
                 _stream.writeLine(concatln(line));

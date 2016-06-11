@@ -166,7 +166,7 @@ findTasksForLoginQ()
     if (! query)
     {
         query = new Query<std::unique_ptr<ClientTask>, std::string>(*db, txt,
-                                                                    std::make_unique<ClientTask, int&&, std::string&&, std::string&&, int&&>);
+                                                                    std::make_unique<ClientTask, int&&, std::string&&, std::string&&, Duration&&>);
         queries.push_back(query);
     }
     return *query;

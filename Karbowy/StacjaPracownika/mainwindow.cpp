@@ -49,7 +49,7 @@ void MainWindow::showLoginDialog()
 
 void MainWindow::showSingleTaskView(const QModelIndex& index)
 {
-    ui->taskView->setData(_model->employeeId(), _model->row(index.row()));
+    ui->taskView->setData(*_model, index.row());
     ui->stackedWidget->setCurrentWidget(ui->taskViewPage);
 }
 

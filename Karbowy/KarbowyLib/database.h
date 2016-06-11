@@ -327,7 +327,7 @@ struct CallFunctor<Result(bool, RestOfArgs...)>
     static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
     {
         bool value = retrieveBoolColumn(stmt, columnIdx);
-        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(std::move(fn), std::move(value)),
                                                         stmt,
                                                         columnIdx + 1);
     }
@@ -340,7 +340,7 @@ struct CallFunctor<Result(boost::optional<bool>, RestOfArgs...)>
     static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
     {
         boost::optional<bool> value = retrieveNullableBoolColumn(stmt, columnIdx);
-        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(std::move(fn), std::move(value)),
                                                         stmt,
                                                         columnIdx + 1);
     }
@@ -353,7 +353,7 @@ struct CallFunctor<Result(int, RestOfArgs...)>
     static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
     {
         int value = retrieveIntColumn(stmt, columnIdx);
-        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(std::move(fn), std::move(value)),
                                                         stmt,
                                                         columnIdx + 1);
     }
@@ -365,8 +365,8 @@ struct CallFunctor<Result(boost::optional<int>, RestOfArgs...)>
     template <typename Functor>
     static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
     {
-        boost::optional<int> value = retrieveNullableIntColumn(stmt, std::move(columnIdx));
-        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, value),
+        boost::optional<int> value = retrieveNullableIntColumn(stmt, columnIdx);
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(std::move(fn), std::move(value)),
                                                         stmt,
                                                         columnIdx + 1);
     }
@@ -379,7 +379,7 @@ struct CallFunctor<Result(std::string, RestOfArgs...)>
     static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
     {
         std::string value(retrieveStringColumn(stmt, columnIdx));
-        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(fn, std::move(value)),
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(std::move(fn), std::move(value)),
                                                         stmt,
                                                         columnIdx + 1);
     }
@@ -398,7 +398,35 @@ struct CallFunctor<Result(boost::optional<std::string>, RestOfArgs...)>
     }
 };
 
-template <typename PointerToMetod>
+template <typename Result, typename... RestOfArgs>
+struct CallFunctor<Result(Duration, RestOfArgs...)>
+{
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
+    {
+        int value = retrieveIntColumn(stmt, columnIdx);
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(std::move(fn), Duration(std::chrono::seconds(value))),
+                                                        stmt,
+                                                        columnIdx + 1);
+    }
+};
+
+template <typename Result, typename... RestOfArgs>
+struct CallFunctor<Result(boost::optional<Duration>, RestOfArgs...)>
+{
+    template <typename Functor>
+    static Result call(Functor&& fn, sqlite3_stmt* stmt, int columnIdx)
+    {
+        boost::optional<int> value = retrieveNullableIntColumn(stmt, columnIdx);
+        return CallFunctor<Result(RestOfArgs...)>::call(bind_first(std::move(fn),
+                                                                   value ? boost::optional<Duration>(std::chrono::seconds(*value)) :
+                                                                           boost::none),
+                                                        stmt,
+                                                        columnIdx + 1);
+    }
+};
+
+template <typename PointerToMethod>
 struct ExtractSignature;
 
 template <typename Result, typename Class, typename... Args>

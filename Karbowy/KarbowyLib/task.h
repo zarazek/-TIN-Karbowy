@@ -3,16 +3,19 @@
 
 #include <string>
 #include <vector>
+#include "timestamp.h"
 
 struct ClientTask
 {
     int _id;
     std::string _title;
     std::vector<std::string> _description;
-    int _secondsSpent;
+    Duration _timeSpent;
+    Timestamp _lastCheckpoint;
+    bool _workingNow;
 
     ClientTask() = default;
-    ClientTask(int id, std::string&& title, const std::string& description, int secondsSpent);
+    ClientTask(int id, std::string&& title, const std::string& description, Duration timeSpent);
 };
 
 #endif
