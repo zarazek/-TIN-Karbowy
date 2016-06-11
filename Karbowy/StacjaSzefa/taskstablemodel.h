@@ -13,13 +13,6 @@ public:
     bool setData(const QModelIndex& index, const QVariant& data, int role = Qt::EditRole) override;
     void addRow();
 private:
-    enum
-    {
-        TASK_STATE_ACTIVE = 0,
-        TASK_STATE_FINISHED = 1,
-        TASK_STATE_CANCELED = 2
-    };
-
     bool setActive(int key, bool active);
     bool setTitle(int key, const QString& title);
     bool setDescription(int key, const QString& desc);

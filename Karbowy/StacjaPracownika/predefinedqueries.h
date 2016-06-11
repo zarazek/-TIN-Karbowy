@@ -23,4 +23,7 @@ Query<std::unique_ptr<ClientTask>, int>& findActiveTasksForEmployeeQ();
 Command<LogEntryType, int, Timestamp, boost::optional<int> >& insertLogEntryC();
 Command<Duration, bool, int, int>& updateTimeSpentOnTaskC();
 
+Query<LogEntry>& findAllLogsQ();
+Query<LogEntry, Timestamp>& findLogsNewerThanQ();
+
 #endif

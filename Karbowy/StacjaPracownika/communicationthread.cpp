@@ -121,33 +121,30 @@ void CommunicationThread::onTasksRetrieved(std::vector<std::unique_ptr<ClientTas
     emit tasksRetrieved();
 }
 
-static AsyncClient::LogEntryList retrieveLogs(const boost::optional<Timestamp>&)
+static AsyncClient::LogEntryList retrieveLogs(const boost::optional<Timestamp>& lastSeenTimestamp)
 {
-    AsyncClient::LogEntryList res;
-    LogEntry entry;
-    entry._userId = "wwisniew";
-    entry._timestamp = Clock::now() - std::chrono::hours(3);
-    entry._type = LogEntryType_LOGIN;
-    entry._taskId = boost::none;
-    res.push_back(entry);
-    entry._timestamp += std::chrono::minutes(1);
-    entry._type = LogEntryType_TASK_START;
-    entry._taskId = 1;
-    res.push_back(entry);
-    entry._timestamp += std::chrono::minutes(30);
-    entry._type = LogEntryType_TASK_PAUSE;
-    res.push_back(entry);
-    entry._timestamp += std::chrono::minutes(5);
-    entry._type = LogEntryType_TASK_START;
-    res.push_back(entry);
-    entry._timestamp += std::chrono::minutes(90);
-    entry._type = LogEntryType_TASK_PAUSE;
-    res.push_back(entry);
-    entry._timestamp += std::chrono::seconds(2);
-    entry._type = LogEntryType_LOGOUT;
-    entry._taskId = boost::none;
-    res.push_back(entry);
-    return res;
+    AsyncClient::LogEntryList lst;
+    if (lastSeenTimestamp)
+    {
+        auto& query = findLogsNewerThanQ();
+        query.execute(*lastSeenTimestamp);
+        LogEntry entry;
+        while (query.next(entry))
+        {
+            lst.push_back(entry);
+        }
+    }
+    else
+    {
+        auto& query = findAllLogsQ();
+        query.execute();
+        LogEntry entry;
+        while (query.next(entry))
+        {
+            lst.push_back(entry);
+        }
+    }
+    return lst;
 }
 
 static void onLogsSent()

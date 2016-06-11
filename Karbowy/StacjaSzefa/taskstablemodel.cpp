@@ -1,5 +1,6 @@
 #include "taskstablemodel.h"
 #include "commongui.h"
+#include "predefinedqueries.h"
 #include <QSqlQuery>
 #include <QSqlRecord>
 #include <QSqlField>

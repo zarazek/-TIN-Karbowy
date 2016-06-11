@@ -146,6 +146,5 @@ bool parse(const std::string& str, const Args&... args)
 }
 
 std::string quoteString(const std::string& str);
-std::string formatTimestamp(const Timestamp& timestamp);
 
 #endif

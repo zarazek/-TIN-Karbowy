@@ -32,7 +32,8 @@ HEADERS  += mainwindow.h \
     commongui.h \
     clientconnection.h \
     server.h \
-    predefinedqueries.h
+    predefinedqueries.h \
+    serverlogentry.h
 
 FORMS    += mainwindow.ui
 

@@ -1,6 +1,7 @@
 #include "predefinedqueries.h"
 #include "employee.h"
 #include "task.h"
+#include "serverlogentry.h"
 #include "parse.h"
 #include <vector>
 
@@ -37,11 +38,13 @@ static const char* createClientsTable =
 
 static const char* createLogsTable =
 "CREATE TABLE IF NOT EXISTS Logs (\n"
-"  type INTEGER NOT NULL,\n"
-"  client REFERENCES Clients(id),\n"
-"  employee REFERENCES Employees(login),\n"
+"  id        INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+"  type      INTEGER NOT NULL,\n"
+"  client    REFERENCES Clients(id),\n"
+"  employee  REFERENCES Employees(login),\n"
 "  timestamp DATETIME NOT NULL,\n"
-"  task INTEGER)\n";
+"  task      INTEGER,\n"
+"  processed BOOL NOT NULL DEFAULT 0)\n";
 
 static const char* createUuidTable =
 "CREATE TABLE IF NOT EXISTS Uuid (\n"
@@ -189,23 +192,6 @@ static boost::optional<Timestamp> parseTimestamp(const boost::optional<std::stri
     }
 }
 
-Query<boost::optional<Timestamp>, int>&
-findLastEntryTimeQ()
-{
-    static const char *txt = "SELECT MAX(L.timestamp)\n"
-                             "FROM Logs AS L JOIN Clients AS C ON L.client = C.id\n"
-                             "WHERE C.id = ?\n";
-    static Query<boost::optional<Timestamp>, int> *query = nullptr;
-
-    if (! query)
-    {
-        query = new Query<boost::optional<Timestamp>, int>(*db, txt,
-                                                           parseTimestamp);
-        queries.push_back(query);
-    }
-    return *query;
-}
-
 Command<std::string>&
 insertClientUuidC()
 {
@@ -244,6 +230,127 @@ insertLogEntryC()
     if (! query)
     {
         query = new Command<int, int, std::string, Timestamp, boost::optional<int> >(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Query<boost::optional<Timestamp>, int>&
+findLastLogEntryTimeForClientQ()
+{
+    static const char *txt = "SELECT MAX(timestamp) FROM Logs WHERE client = ?\n";
+    static Query<boost::optional<Timestamp>, int> *query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<boost::optional<Timestamp>, int>(*db, txt,
+                                                           parseTimestamp);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+static ServerLogEntry makeServerEmployee(int id,
+                                         int type,
+                                         int clientId,
+                                         std::string&& employeeId,
+                                         const Timestamp& timestamp,
+                                         boost::optional<int>&& taskId)
+{
+    return ServerLogEntry
+    {
+        ._id = id,
+        ._clientId = clientId,
+        ._entry = LogEntry
+        {
+            ._type = static_cast<LogEntryType>(type),
+            ._timestamp = timestamp,
+            ._userId = std::forward<std::string>(employeeId),
+            ._taskId = std::forward<boost::optional<int> >(taskId),
+        },
+    };
+}
+
+Query<ServerLogEntry, std::string>&
+findUnprocessedLogEntriesForEmployeeQ()
+{
+    static const char *txt = "SELECT id, type, client, employee, timestamp, task\n"
+                             "FROM Logs\n"
+                             "WHERE employee = ? AND NOT processed\n"
+                             "ORDER BY timestamp\n";
+    static Query<ServerLogEntry, std::string>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<ServerLogEntry, std::string>(*db, txt, makeServerEmployee);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+static TaskStatus makeTaskStatus(int id,
+                                 const boost::optional<bool>& finished,
+                                 const boost::optional<Duration>& timeSpent)
+{
+    TaskStatus status;
+    status._id = id;
+    if (finished && timeSpent)
+    {
+        AssignmentStatus assignment;
+        assignment._finished = *finished;
+        assignment._timeSpent =  *timeSpent;
+        status._assignment = std::move(assignment);
+    }
+    else if (! finished && ! timeSpent)
+    {
+        status._assignment = boost::none;
+    }
+    else
+    {
+        assert(false);
+    }
+    return status;
+}
+
+Query<TaskStatus, std::string, int>& findTaskStatusQ()
+{
+    static const char *txt = "SELECT T.id, ET.finished, ET.time_spent\n"
+                             "FROM Tasks AS T\n"
+                             "LEFT JOIN EmployeesTasks AS ET ON T.id = ET.task\n"
+                             "WHERE ET.employee = ? AND T.id = ?\n";
+    static Query<TaskStatus, std::string, int>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<TaskStatus, std::string, int>(*db, txt, makeTaskStatus);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Command<int>& setLogEntryToProcessedC()
+{
+    static const char *txt = "UPDATE Logs SET processed = 1 WHERE id = ?\n";
+    static Command<int>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Command<int>(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Command<bool, Duration, std::string, int>& updateEmployeeTaskStatusC()
+{
+    static const char *txt = "UPDATE EmployeesTasks\n"
+                             "SET finished = ?, time_spent = ?\n"
+                             "WHERE employee = ? AND  task = ?\n";
+    static Command<bool, Duration, std::string, int>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Command<bool, Duration, std::string, int>(*db, txt);
         queries.push_back(query);
     }
     return *query;

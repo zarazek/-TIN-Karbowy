@@ -27,7 +27,7 @@ static const char* createEmployeesTasksTable =
 static const char* createLogsTable =
 "CREATE TABLE IF NOT EXISTS Logs (\n"
 "  type INTEGER NOT NULL,\n"
-"  employee REFERENCES Employees(login),\n"
+"  employee REFERENCES Employees(id),\n"
 "  timestamp DATETIME NOT NULL,\n"
 "  task INTEGER)\n";
 
@@ -210,6 +210,48 @@ updateTimeSpentOnTaskC()
     if (! query)
     {
         query = new Command<Duration, bool, int, int>(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+static LogEntry makeLogEntry(int type, const Timestamp& timestamp, std::string&& userId, boost::optional<int>&& taskId)
+{
+    return LogEntry
+           {
+               static_cast<LogEntryType>(type),
+               timestamp,
+               std::forward<std::string>(userId),
+               std::forward<boost::optional<int> >(taskId)
+           };
+}
+
+Query<LogEntry>&
+findAllLogsQ()
+{
+    static const char* txt = "SELECT L.type, L.timestamp, E.login, L.task\n"
+                             "FROM Logs AS L JOIN Employees AS E ON L.employee == E.id\n";
+    static Query<LogEntry>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<LogEntry>(*db, txt, makeLogEntry);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Query<LogEntry, Timestamp>&
+findLogsNewerThanQ()
+{
+    static const char* txt = "SELECT L.type, L.timestamp, E.login, L.task\n"
+                             "FROM Logs AS L JOIN Employees AS E ON L.employee == E.id\n"
+                             "WHERE L.timestamp > ?\n";
+    static Query<LogEntry, Timestamp>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<LogEntry, Timestamp>(*db, txt, makeLogEntry);
         queries.push_back(query);
     }
     return *query;
