@@ -163,7 +163,7 @@ findTasksForLoginQ()
                              "FROM EmployeesTasks AS ET\n"
                              "JOIN Employees AS E ON ET.employee = E.login\n"
                              "JOIN Tasks AS t ON ET.task = T.id\n"
-                             "WHERE E.login = ? AND T.status = 0 AND ET.assignment_active AND NOT ET.finished\n";
+                             "WHERE E.login = ? AND T.status = 0 AND ET.assignment_active = 1 AND ET.finished = 0\n";
     static Query<std::unique_ptr<ClientTask>, std::string> *query = nullptr;
 
     if (! query)

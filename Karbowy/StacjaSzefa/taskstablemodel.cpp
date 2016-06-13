@@ -55,6 +55,16 @@ Qt::ItemFlags TasksTableModel::flags(const QModelIndex& index) const
     return flags;
 }
 
+static QString formatTime(Duration duration)
+{
+    int hours = std::chrono::duration_cast<std::chrono::hours>(duration).count();
+    duration -= std::chrono::hours(hours);
+    int minutes = std::chrono::duration_cast<std::chrono::minutes>(duration).count();
+    duration -= std::chrono::minutes(minutes);
+    int seconds = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+    return QString::asprintf("%02d:%02d:%02d", hours, minutes, seconds);
+}
+
 QVariant TasksTableModel::data(const QModelIndex& item, int role) const
 {
     QVariant v = QSqlQueryModel::data(item, role);
@@ -107,10 +117,19 @@ QVariant TasksTableModel::data(const QModelIndex& item, int role) const
     }
     else if (item.column() == TASK_COLUMN_TOTAL_TIME && role == Qt::DisplayRole)
     {
+        int numOfSeconds;
+        bool ok = false;
         if (v.isNull())
         {
-            v = 0;
+            numOfSeconds = 0;
+            ok = true;
         }
+        else
+        {
+            numOfSeconds = v.toInt(&ok);
+        }
+        assert(ok);
+        v = formatTime(std::chrono::seconds(numOfSeconds));
     }
 
     return v;
