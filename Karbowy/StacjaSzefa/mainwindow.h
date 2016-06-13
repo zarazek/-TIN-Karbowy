@@ -8,7 +8,9 @@ class MainWindow;
 }
 
 class QMenu;
+class QModelIndex;
 class SortFilterEmployeeModel;
+class TasksTableModel;
 
 class MainWindow : public QDialog
 {
@@ -22,8 +24,10 @@ public:
 private:
     Ui::MainWindow *ui;
     QMenu* _employeesContextMenu;
+    TasksTableModel *_tasksModel;
 
     QMenu *createEmployeesContextMenu(SortFilterEmployeeModel* model);
+    void showTaskAssignmentDialog(const QModelIndex& index);
 };
 
 #endif // MAINWINDOW_H

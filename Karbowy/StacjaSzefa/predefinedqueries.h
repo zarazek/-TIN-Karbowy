@@ -45,4 +45,15 @@ Query<TaskStatus, std::string, int>& findTaskStatusQ();
 Command<int>& setLogEntryToProcessedC();
 Command<bool, Duration, std::string, int>& updateEmployeeTaskStatusC();
 
+
+Query<std::string>& findAllActiveEmployeesQ();
+struct TaskAssignedEmployee
+{
+    std::string _employeeId;
+    bool _assignmentActive;
+};
+Query<TaskAssignedEmployee, int>& findAllEmployeesAssignedToTaskQ();
+Command<bool, std::string, int>& changeEmployeeTaskAssignmentStatusC();
+Command<std::string, int>& addEmployeeToTaskC();
+
 #endif // PREDEFINEDQUERIES_H

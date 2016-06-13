@@ -2,6 +2,7 @@
 #include "predefinedqueries.h"
 #include "stringandtimeutils.h"
 #include <QMessageBox>
+#include <iostream>
 
 TaskTableModel::TaskTableModel(QObject *parent) :
     QAbstractTableModel(parent),
@@ -122,6 +123,16 @@ void TaskTableModel::refresh()
 void TaskTableModel::startWork(size_t idx)
 {
     Timestamp newCheckpoint = Clock::now();
+
+    std::cout << "Timestamp: " << newCheckpoint.time_since_epoch().count() << std::endl;
+    std::string checkpointFormated = formatTimestamp(newCheckpoint);
+    std::cout << "Formated: " << checkpointFormated << std::endl;
+    Timestamp checkpointParsed;
+    parse(checkpointFormated, TimestampToken(checkpointParsed));
+    std::cout << "Parsed: " << checkpointParsed.time_since_epoch().count() << std::endl;
+    std::string checkpointFormatedAgain = formatTimestamp(checkpointParsed);
+    std::cout << "Formated again: " << checkpointFormatedAgain << std::endl;
+
     ClientTask& task = *_tasks.at(idx);
     assert(! task._workingNow);
     task._lastCheckpoint = newCheckpoint;

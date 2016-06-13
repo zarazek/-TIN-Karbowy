@@ -32,7 +32,7 @@ private:
 
     void handleCommand(const std::string& line);
     void insertLogEntry(const LogEntry& entry);
-    void processLogs();
+    void processLogs(const std::string& employeeId);
 };
 
 #endif // CLIENTCONNECTION_H

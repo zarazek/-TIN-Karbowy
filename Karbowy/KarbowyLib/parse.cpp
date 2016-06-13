@@ -131,7 +131,7 @@ bool TimestampToken::parse(std::string::const_iterator &begin, const std::string
     {
         return false;
     }
-    _target = Clock::from_time_t(time) + std::chrono::milliseconds(millis);
+    _target = Clock::from_time_t(time - timezone) + std::chrono::milliseconds(millis);
     return true;
 }
 

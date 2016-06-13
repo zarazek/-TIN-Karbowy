@@ -355,3 +355,67 @@ Command<bool, Duration, std::string, int>& updateEmployeeTaskStatusC()
     }
     return *query;
 }
+
+Query<std::string>&
+findAllActiveEmployeesQ()
+{
+    static const char *txt = "SELECT login FROM Employees WHERE active\n";
+    static Query<std::string>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<std::string>(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+static TaskAssignedEmployee makeTaskAssignedEmployee(std::string&& employeeId, bool assignementActive)
+{
+    return TaskAssignedEmployee { std::forward<std::string>(employeeId), assignementActive };
+}
+
+Query<TaskAssignedEmployee, int>&
+findAllEmployeesAssignedToTaskQ()
+{
+    static const char *txt = "SELECT E.login, ET.assignment_active\n"
+                             "FROM Employees AS E\n"
+                             "JOIN EmployeesTasks AS ET ON E.login = ET.employee\n"
+                             "WHERE ET.task = ? AND E.active\n";
+    static Query<TaskAssignedEmployee, int>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Query<TaskAssignedEmployee, int>(*db, txt, makeTaskAssignedEmployee);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Command<bool, std::string, int>&
+changeEmployeeTaskAssignmentStatusC()
+{
+    static const char *txt = "UPDATE EmployeesTasks SET assignment_active = ? WHERE employee = ? AND task = ?\n";
+    static Command<bool, std::string, int>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Command<bool, std::string, int>(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}
+
+Command<std::string, int>&
+addEmployeeToTaskC()
+{
+    static const char *txt = "INSERT INTO EmployeesTasks(employee, task) VALUES(?, ?)\n";
+    static Command<std::string, int>* query = nullptr;
+
+    if (! query)
+    {
+        query = new Command<std::string, int>(*db, txt);
+        queries.push_back(query);
+    }
+    return *query;
+}

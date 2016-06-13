@@ -22,7 +22,9 @@ SOURCES += main.cpp\
     listeners.cpp \
     server.cpp \
     clientconnection.cpp \
-    predefinedqueries.cpp
+    predefinedqueries.cpp \
+    logprocessor.cpp \
+    taskassignmentdialog.cpp
 
 HEADERS  += mainwindow.h \
     employee.h \
@@ -33,9 +35,12 @@ HEADERS  += mainwindow.h \
     clientconnection.h \
     server.h \
     predefinedqueries.h \
-    serverlogentry.h
+    serverlogentry.h \
+    logprocessor.h \
+    taskassignmentdialog.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    taskassignmentdialog.ui
 
 unix: CONFIG += link_pkgconfig
 unix: PKGCONFIG += sqlite3

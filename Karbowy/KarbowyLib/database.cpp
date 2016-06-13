@@ -114,7 +114,10 @@ void ExecuteError::formatWhatMsg(std::ostream &stream) const
 Database::Database(const string &filename)
     : _db(nullptr)
 {
-    int errorCode = sqlite3_open(filename.c_str(), &_db);
+    int errorCode = sqlite3_open_v2(filename.c_str(),
+                                    &_db,
+                                    SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX,
+                                    nullptr);
     if (errorCode != SQLITE_OK)
     {
         OpenError err(errorCode, getErrorMsg(_db, errorCode), filename);
