@@ -11,13 +11,14 @@ class QMenu;
 class QModelIndex;
 class SortFilterEmployeeModel;
 class TasksTableModel;
+class Server;
 
 class MainWindow : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(Server& server, QWidget *parent = 0);
     ~MainWindow();
     bool eventFilter(QObject* obj, QEvent* e) override;
 

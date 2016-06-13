@@ -4,18 +4,25 @@
 #include "sockets.h"
 #include <thread>
 #include <atomic>
+#include <QObject>
 
 class Server;
 class Employee;
 class LogEntry;
 
-class ClientConnection : public std::enable_shared_from_this<ClientConnection>
+class ClientConnection : public QObject,
+                         public std::enable_shared_from_this<ClientConnection>
 {
+    Q_OBJECT;
+
 public:
     ClientConnection(Server& server, TcpStream&& stream);
     void start();
     void stop();
     void waitToFinish();
+
+signals:
+    void tasksStatusChanged();
 
 private:
     Server &_server;

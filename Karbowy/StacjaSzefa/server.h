@@ -9,6 +9,7 @@
 #include <atomic>
 
 class ClientConnection;
+class TasksTableModel;
 
 class Server
 {
@@ -20,6 +21,7 @@ public:
         return _uuid;
     }
 
+    void setTasksTableModel(TasksTableModel& model);
     void start();
     void stop();
     void removeClient(const std::shared_ptr<ClientConnection>& client);
@@ -36,6 +38,7 @@ private:
     std::mutex _clientsMutex;
     std::set<std::shared_ptr<ClientConnection> > _clients;
     std::atomic<bool> _run;
+    TasksTableModel* _tasksModel;
 
     void runListener(Listener* listener, const char* className);
     std::shared_ptr<ClientConnection> getClientToRemove();

@@ -12,11 +12,11 @@ public:
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
     bool setData(const QModelIndex& index, const QVariant& data, int role = Qt::EditRole) override;
     void addRow();
+    void refresh();
 private:
     bool setActive(int key, bool active);
     bool setTitle(int key, const QString& title);
     bool setDescription(int key, const QString& desc);
-    void refresh();
 };
 
 #endif // TASKSTABLEMODEL_H

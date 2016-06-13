@@ -1,5 +1,6 @@
 #include "server.h"
 #include "clientconnection.h"
+#include "taskstablemodel.h"
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/lexical_cast.hpp>
 #include <signal.h>
@@ -9,7 +10,13 @@ Server::Server(std::string&& uuid, uint16_t port) :
     _uuid(std::forward<std::string>(uuid)),
     _ipv4Listener(port),
     _ipv6Listener(port),
-    _run(false) { }
+    _run(false),
+    _tasksModel(nullptr) { }
+
+void Server::setTasksTableModel(TasksTableModel& model)
+{
+    _tasksModel = &model;
+}
 
 void Server::start()
 {
@@ -56,6 +63,9 @@ void Server::runListener(Listener* listener, const char* className)
             if (_run)
             {
                 auto client = std::make_shared<ClientConnection>(*this, std::move(stream));
+                QObject::connect(client.get(), &ClientConnection::tasksStatusChanged,
+                                 _tasksModel, &TasksTableModel::refresh,
+                                 Qt::QueuedConnection);
                 client->start();
                 std::lock_guard<std::mutex> guard(_clientsMutex);
                 auto res = _clients.insert(client);

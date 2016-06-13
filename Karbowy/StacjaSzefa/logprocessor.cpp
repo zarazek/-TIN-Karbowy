@@ -34,8 +34,11 @@ void LogProcessor::checkEmployeeId()
     std::unique_ptr<Employee> employee;
     if (query.next(employee))
     {
-        std::cerr << "Employee '" << _employeeId << "' doesn't exist" << std::endl;
         _employeeIsValid = true;
+    }
+    else
+    {
+        std::cerr << "Employee '" << _employeeId << "' doesn't exist" << std::endl;
     }
 }
 

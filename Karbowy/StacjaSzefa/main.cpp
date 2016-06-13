@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
         }
         std::cout << "UUID = " << strUuid << std::endl;
         Server server(std::move(strUuid), 10001);
-        server.start();
+        // server.start();
 
         QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", "KarbowyDb");
         db.setDatabaseName("StacjaSzefa.db");
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
         }
         db.close();
 
-        MainWindow w;
+        MainWindow w(server);
         w.show();
         int res =  a.exec();
         server.stop();

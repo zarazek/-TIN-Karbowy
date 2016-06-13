@@ -6,13 +6,14 @@
 #include "taskstablemodel.h"
 #include "taskassignmentdialog.h"
 #include "predefinedqueries.h"
+#include "server.h"
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <assert.h>
 
 #include <iostream>
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(Server& server, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::MainWindow)
 {
@@ -42,6 +43,9 @@ MainWindow::MainWindow(QWidget *parent) :
     header = ui->tasksView->horizontalHeader();
     header->setSectionResizeMode(QHeaderView::ResizeToContents);
     header->setSortIndicatorShown(true);
+
+    server.setTasksTableModel(*_tasksModel);
+    server.start();
 }
 
 QMenu* MainWindow::createEmployeesContextMenu(SortFilterEmployeeModel *model)
@@ -118,6 +122,7 @@ void MainWindow::showTaskAssignmentDialog(const QModelIndex& index)
         TaskAssignmentDialog dialog(availableEmployees, assignedEmployees, this);
         if (dialog.exec())
         {
+            bool changed = false;
             auto& changeStatus = changeEmployeeTaskAssignmentStatusC();
             auto& add = addEmployeeToTaskC();
             for (const auto& employee : availableEmployees)
@@ -125,6 +130,7 @@ void MainWindow::showTaskAssignmentDialog(const QModelIndex& index)
                 if (activeAssignedEmployees.find(employee) != activeAssignedEmployees.end())
                 {
                     changeStatus.execute(false, employee, taskId);
+                    changed = true;
                 }
             }
             for (const auto& employee : assignedEmployees)
@@ -136,13 +142,20 @@ void MainWindow::showTaskAssignmentDialog(const QModelIndex& index)
                 else if (inactiveAssignedEmployees.find(employee) != inactiveAssignedEmployees.end())
                 {
                     changeStatus.execute(true, employee, taskId);
+                    changed = true;
                 }
                 else
                 {
                     add.execute(employee, taskId);
+                    changed = true;
                 }
             }
+            if (changed)
+            {
+                _tasksModel->refresh();
+            }
         }
+
     }
     catch (std::exception& ex)
     {

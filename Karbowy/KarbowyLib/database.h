@@ -267,7 +267,7 @@ public:
 
     void execute(Args... args)
     {
-        // sqlite3_reset(_stmt);
+        sqlite3_reset(_stmt);
         bindParams(args...);
         bool res = executeStep();
         assert(! res);
@@ -591,7 +591,7 @@ public:
 
     void execute(Args... args)
     {
-        // sqlite3_reset(_stmt);
+        sqlite3_reset(_stmt);
         bindParams(args...);
     }
 

@@ -194,6 +194,7 @@ void ClientConnection::handleCommand(const std::string& line)
         {
             processLogs(employeeId);
         }
+        emit tasksStatusChanged();
     }
     else
     {
@@ -237,4 +238,5 @@ void ClientConnection::processLogs(const std::string& employeeId)
     {
         processor.process(std::move(entry));
     }
+    processor.finish();
 }
